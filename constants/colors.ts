@@ -1,0 +1,16 @@
+export const Colors = {
+  background: '#05050F',
+  card: '#0D0D1F',
+  cardBorder: '#1A1A3A',
+  accent: '#FF0080',
+  accentCyan: '#00F5FF',
+  accentGlow: 'rgba(255, 0, 128, 0.45)',
+  accentDim: 'rgba(255, 0, 128, 0.12)',
+  cyanDim: 'rgba(0, 245, 255, 0.1)',
+  text: '#FFFFFF',
+  textSecondary: '#AAAACC',
+  textMuted: '#444466',
+  tabBar: '#08081A',
+  inputBg: '#111128',
+  divider: '#1A1A3A',
+};

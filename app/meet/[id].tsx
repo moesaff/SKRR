@@ -1,93 +1,530 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Pressable } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  ActivityIndicator, Modal, Alert,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { mockMeets } from '../../constants/mockData';
+import {
+  doc, getDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove, increment, deleteDoc,
+} from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useUser } from '../../context/UserContext';
+import FlipCard, { CardData } from '../../components/FlipCard';
+import { mockUser } from '../../constants/mockData';
+
+interface MeetData {
+  id: string;
+  title: string;
+  location: string;
+  date: string;
+  description: string;
+  carTypes: string[];
+  attendees: number;
+  attendeeUids: string[];
+  hostedBy: string;
+  hostUid: string;
+}
+
+interface UserProfile {
+  id: string;
+  username: string;
+  city: string;
+  skrrId: string;
+  car: { year?: string | number; make?: string; model?: string };
+  cardStyle?: { outlineColor?: string };
+}
+
+// ─── Profile Card Modal ───────────────────────────────────────────────────────
+
+function firestoreToCardData(uid: string, d: any): CardData {
+  return {
+    ...mockUser,
+    id: uid,
+    skrrId: d.skrrId ?? '',
+    username: d.username ?? 'Unknown',
+    location: d.city ?? '',
+    profilePhoto: d.profilePhoto ?? null,
+    car: {
+      ...mockUser.car,
+      year: Number(d.car?.year) || mockUser.car.year,
+      make: d.car?.make ?? mockUser.car.make,
+      model: d.car?.model ?? mockUser.car.model,
+      photo: d.car?.photo ?? null,
+      hp: Number(d.car?.hp) || 0,
+      torque: Number(d.car?.torque) || 0,
+      mods: d.car?.mods ?? [],
+      zeroToSixty: d.car?.zeroToSixty ?? '',
+      drivetrain: d.car?.drivetrain ?? '',
+      engine: d.car?.engine ?? '',
+    },
+    stats: {
+      meetsAttended: d.meetsAttended ?? 0,
+      meetsHosted: d.meetsHosted ?? 0,
+      friends: (d.connections ?? d.following ?? []).length,
+      rating: d.rating ?? 0,
+    },
+    rank: d.rank ?? '',
+    cardStyle: d.cardStyle ?? mockUser.cardStyle,
+  };
+}
+
+function ProfileCardModal({ userId, visible, onClose }: {
+  userId: string; visible: boolean; onClose: () => void;
+}) {
+  const [cardData, setCardData] = useState<CardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!visible || !userId) return;
+    setLoading(true);
+    setCardData(null);
+    getDoc(doc(db, 'users', userId))
+      .then(snap => {
+        if (snap.exists()) setCardData(firestoreToCardData(snap.id, snap.data()));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [userId, visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <View style={pc.overlay}>
+        <TouchableOpacity style={pc.dimArea} activeOpacity={1} onPress={onClose} />
+
+        {/* Close button sits ABOVE the sheet so it never overlaps the card */}
+        <TouchableOpacity
+          style={pc.closeBtn}
+          onPress={onClose}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        >
+          <Ionicons name="close" size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+
+        <View style={pc.sheet}>
+          <View style={pc.handle} />
+
+          {loading ? (
+            <ActivityIndicator color={Colors.accent} style={{ marginVertical: 60 }} />
+          ) : cardData ? (
+            <View style={pc.cardWrap}>
+              <View style={pc.hintRow}>
+                <Ionicons name="swap-horizontal" size={12} color={Colors.textMuted} />
+                <Text style={pc.hintText}>Tap VEHICLE STATS to flip</Text>
+              </View>
+              {/* scale gives the rotating card room so perspective overflow never hits the sheet edge */}
+              <View style={pc.cardScale}>
+                <FlipCard data={cardData} />
+              </View>
+            </View>
+          ) : (
+            <Text style={pc.notFound}>User not found</Text>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MeetDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const meet = mockMeets.find((m) => m.id === id) ?? mockMeets[0];
-  const [rsvped, setRsvped] = useState(false);
+  const { user: me } = useUser();
+  const router = useRouter();
+
+  const [meet, setMeet] = useState<MeetData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
+  const [attendeeProfiles, setAttendeeProfiles] = useState<UserProfile[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showAttendees, setShowAttendees] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    const unsub = onSnapshot(doc(db, 'meets', id as string), async snap => {
+      if (!snap.exists()) { setLoading(false); return; }
+      const d = snap.data();
+      const data: MeetData = {
+        id: snap.id,
+        title: d.title ?? '',
+        location: d.location ?? '',
+        date: d.date ?? '',
+        description: d.description ?? '',
+        carTypes: d.carTypes ?? [],
+        attendees: d.attendees ?? 0,
+        attendeeUids: d.attendeeUids ?? [],
+        hostedBy: d.hostedBy ?? '',
+        hostUid: d.hostUid ?? '',
+      };
+      setMeet(data);
+      setLoading(false);
+
+      // Fetch attendee profiles
+      const uids: string[] = d.attendeeUids ?? [];
+      const profiles = await Promise.all(
+        uids.map(async (uid) => {
+          try {
+            const s = await getDoc(doc(db, 'users', uid));
+            if (!s.exists()) return null;
+            const u = s.data();
+            return {
+              id: s.id,
+              username: u.username ?? 'Unknown',
+              city: u.city ?? '',
+              skrrId: u.skrrId ?? '',
+              car: u.car ?? {},
+              cardStyle: u.cardStyle ?? null,
+            } as UserProfile;
+          } catch { return null; }
+        })
+      );
+      setAttendeeProfiles(profiles.filter(Boolean) as UserProfile[]);
+    });
+    return () => unsub();
+  }, [id]);
+
+  const isJoined = meet?.attendeeUids.includes(me.id) ?? false;
+  const isHost   = meet?.hostUid === me.id;
+
+  async function cancelMeet() {
+    if (!meet) return;
+    Alert.alert(
+      'Cancel Meet',
+      'Are you sure you want to cancel this meet? This cannot be undone.',
+      [
+        { text: 'Keep It', style: 'cancel' },
+        {
+          text: 'Cancel Meet', style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'meets', meet.id));
+              router.back();
+            } catch (e: any) {
+              Alert.alert('Error', e.message);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function toggleJoin() {
+    if (!meet || !me.id || me.id === '1') return;
+    setJoining(true);
+    try {
+      if (isJoined) {
+        await updateDoc(doc(db, 'meets', meet.id), {
+          attendeeUids: arrayRemove(me.id),
+          attendees: increment(-1),
+        });
+      } else {
+        await updateDoc(doc(db, 'meets', meet.id), {
+          attendeeUids: arrayUnion(me.id),
+          attendees: increment(1),
+        });
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.container}>
+        <ActivityIndicator color={Colors.accent} style={{ marginTop: 60 }} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!meet) {
+    return (
+      <SafeAreaView style={s.container}>
+        <Text style={{ color: Colors.textMuted, textAlign: 'center', marginTop: 60 }}>Meet not found.</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{meet.title}</Text>
-        <View style={styles.hostedByRow}>
-          <Text style={styles.hostedByLabel}>Hosted by </Text>
-          <Text style={styles.hostedByName}>{meet.hostedBy}</Text>
-        </View>
+    <SafeAreaView style={s.container}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
+        {/* Title + host */}
+        <Text style={s.title}>{meet.title}</Text>
+        <TouchableOpacity style={s.hostRow} onPress={() => meet.hostUid && setSelectedUserId(meet.hostUid)}>
+          <View style={s.hostAvatar}>
+            <Ionicons name="person" size={14} color={Colors.textMuted} />
+          </View>
+          <Text style={s.hostLabel}>Hosted by </Text>
+          <Text style={s.hostName}>{meet.hostedBy}</Text>
+          <Ionicons name="chevron-forward" size={13} color={Colors.textMuted} style={{ marginLeft: 2 }} />
+        </TouchableOpacity>
+
+        {/* Info boxes */}
         <InfoBox icon="location" label="LOCATION" value={meet.location} />
         <InfoBox icon="calendar" label="DATE & TIME" value={meet.date} />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ABOUT THIS MEET</Text>
-          <Text style={styles.description}>{meet.description}</Text>
+        {/* Description */}
+        {meet.description ? (
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>ABOUT THIS MEET</Text>
+            <Text style={s.description}>{meet.description}</Text>
+          </View>
+        ) : null}
+
+        {/* Car types */}
+        {meet.carTypes.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>CAR TYPES WELCOME</Text>
+            <View style={s.tagsRow}>
+              {meet.carTypes.map(type => (
+                <View key={type} style={s.tag}>
+                  <Text style={s.tagText}>{type}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Attendees */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>WHO'S GOING · {meet.attendees}</Text>
+          <TouchableOpacity
+            style={s.attendeeRow}
+            onPress={() => attendeeProfiles.length > 0 && setShowAttendees(true)}
+            activeOpacity={0.75}
+          >
+            {attendeeProfiles.length === 0 ? (
+              <Text style={s.emptyAttendees}>No one yet — be the first to join.</Text>
+            ) : (
+              <>
+                <View style={s.bubbleStack}>
+                  {attendeeProfiles.slice(0, 5).map((u, i) => {
+                    const accent = u.cardStyle?.outlineColor ?? Colors.accent;
+                    return (
+                      <View
+                        key={u.id}
+                        style={[s.bubble, { borderColor: accent, marginLeft: i === 0 ? 0 : -10, zIndex: 5 - i }]}
+                      >
+                        {u.id === meet.hostUid
+                          ? <Ionicons name="star" size={14} color={Colors.accent} />
+                          : <Ionicons name="person" size={14} color={Colors.textMuted} />
+                        }
+                      </View>
+                    );
+                  })}
+                  {meet.attendees > 5 && (
+                    <View style={[s.bubble, s.bubbleOverflow, { marginLeft: -10 }]}>
+                      <Text style={s.bubbleOverflowText}>+{meet.attendees - 5}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={s.attendeeSeeAll}>
+                  {meet.attendees === 1 ? '1 person going' : `${meet.attendees} people going`}
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>CAR TYPES WELCOME</Text>
-          <View style={styles.tagsRow}>
-            {meet.carTypes.map((type) => (
-              <View key={type} style={styles.tag}>
-                <Text style={styles.tagText}>{type}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+        {/* Join button — hidden for host */}
+        {!isHost && (
+          <TouchableOpacity
+            style={[s.joinBtn, isJoined && s.joinBtnLeave]}
+            onPress={toggleJoin}
+            disabled={joining}
+            activeOpacity={0.8}
+          >
+            {joining ? (
+              <ActivityIndicator color={isJoined ? Colors.accent : '#000'} />
+            ) : (
+              <>
+                <Ionicons
+                  name={isJoined ? 'checkmark-circle' : 'add-circle'}
+                  size={20}
+                  color={isJoined ? Colors.accent : '#000'}
+                />
+                <Text style={[s.joinBtnText, isJoined && s.joinBtnTextLeave]}>
+                  {isJoined ? "YOU'RE IN · TAP TO LEAVE" : 'JOIN THIS MEET'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
-        <View style={styles.rsvpBar}>
-          <View style={styles.rsvpCountRow}>
-            <Ionicons name="people" size={20} color={Colors.accent} />
-            <Text style={styles.rsvpNumber}>{rsvped ? meet.rsvps + 1 : meet.rsvps}</Text>
-            <Text style={styles.rsvpLabel}>going</Text>
-          </View>
-          <Pressable style={[styles.rsvpBtn, rsvped && styles.rsvpBtnActive]} onPress={() => setRsvped(!rsvped)}>
-            <Ionicons name={rsvped ? 'checkmark-circle' : 'add-circle-outline'} size={17} color={rsvped ? '#000' : Colors.accent} />
-            <Text style={[styles.rsvpBtnText, rsvped && styles.rsvpBtnTextActive]}>{rsvped ? "YOU'RE IN" : 'RSVP'}</Text>
-          </Pressable>
-        </View>
+        {/* Cancel meet — host only */}
+        {isHost && (
+          <TouchableOpacity style={s.cancelBtn} onPress={cancelMeet} activeOpacity={0.8}>
+            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+            <Text style={s.cancelBtnText}>CANCEL THIS MEET</Text>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
+
+      <ProfileCardModal
+        userId={selectedUserId ?? ''}
+        visible={!!selectedUserId}
+        onClose={() => setSelectedUserId(null)}
+      />
+
+      <AttendeesSheet
+        visible={showAttendees}
+        attendees={attendeeProfiles}
+        hostUid={meet.hostUid}
+        onClose={() => setShowAttendees(false)}
+        onSelectUser={(uid) => { setShowAttendees(false); setSelectedUserId(uid); }}
+      />
     </SafeAreaView>
+  );
+}
+
+// ─── Attendees Sheet ──────────────────────────────────────────────────────────
+
+function AttendeesSheet({ visible, attendees, hostUid, onClose, onSelectUser }: {
+  visible: boolean;
+  attendees: UserProfile[];
+  hostUid: string;
+  onClose: () => void;
+  onSelectUser: (uid: string) => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <View style={as.overlay}>
+        <TouchableOpacity style={as.dimArea} activeOpacity={1} onPress={onClose} />
+        <View style={[as.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={as.header}>
+            <View style={as.handle} />
+            <TouchableOpacity
+              style={as.closeBtn}
+              onPress={onClose}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <Ionicons name="close" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <Text style={as.title}>WHO'S GOING · {attendees.length}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={as.list}>
+            {attendees.map(u => {
+              const accent = u.cardStyle?.outlineColor ?? Colors.accent;
+              const carLabel = [u.car.year, u.car.make, u.car.model].filter(Boolean).join(' ');
+              const isHost = u.id === hostUid;
+              return (
+                <TouchableOpacity
+                  key={u.id}
+                  style={as.row}
+                  onPress={() => onSelectUser(u.id)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[as.avatar, { borderColor: accent, shadowColor: accent }]}>
+                    <Ionicons name="person" size={18} color={Colors.textMuted} />
+                    {isHost && (
+                      <View style={as.hostBadge}>
+                        <Ionicons name="star" size={8} color="#000" />
+                      </View>
+                    )}
+                  </View>
+                  <View style={as.info}>
+                    <View style={as.nameRow}>
+                      <Text style={as.username}>{u.username}</Text>
+                      {isHost && <Text style={[as.hostTag, { color: accent }]}>HOST</Text>}
+                    </View>
+                    {carLabel ? <Text style={[as.car, { color: accent }]} numberOfLines={1}>{carLabel}</Text> : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 function InfoBox({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <View style={styles.infoBox}>
+    <View style={s.infoBox}>
       <Ionicons name={icon as any} size={15} color={Colors.accent} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.infoBoxLabel}>{label}</Text>
-        <Text style={styles.infoBoxValue}>{value}</Text>
+        <Text style={s.infoBoxLabel}>{label}</Text>
+        <Text style={s.infoBoxValue}>{value}</Text>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
-  title: { color: Colors.text, fontSize: 26, fontWeight: '900', letterSpacing: 0.3, marginBottom: 8 },
-  hostedByRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  hostedByLabel: { color: Colors.textMuted, fontSize: 13 },
-  hostedByName: { color: Colors.accent, fontSize: 13, fontWeight: '700' },
-  infoBox: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 12, padding: 14, marginBottom: 10 },
-  infoBoxLabel: { color: Colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 2, marginBottom: 3 },
-  infoBoxValue: { color: Colors.text, fontSize: 14, fontWeight: '700' },
-  section: { marginTop: 14, marginBottom: 8 },
-  sectionLabel: { color: Colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 10 },
-  description: { color: Colors.textSecondary, fontSize: 14, lineHeight: 22 },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { backgroundColor: Colors.accentDim, borderWidth: 1, borderColor: Colors.accent + '40', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
-  tagText: { color: Colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  rsvpBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 14, padding: 16, marginTop: 20 },
-  rsvpCountRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rsvpNumber: { color: Colors.text, fontSize: 24, fontWeight: '900' },
-  rsvpLabel: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
-  rsvpBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.accent, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 12, backgroundColor: Colors.accentDim },
-  rsvpBtnActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  rsvpBtnText: { color: Colors.accent, fontSize: 13, fontWeight: '900', letterSpacing: 2 },
-  rsvpBtnTextActive: { color: '#000' },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  container:       { flex: 1, backgroundColor: Colors.background },
+  scroll:          { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 50 },
+  title:           { color: Colors.text, fontSize: 26, fontWeight: '900', letterSpacing: 0.3, marginBottom: 10 },
+  hostRow:         { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  hostAvatar:      { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  hostLabel:       { color: Colors.textMuted, fontSize: 13 },
+  hostName:        { color: Colors.accent, fontSize: 13, fontWeight: '700' },
+  infoBox:         { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 12, padding: 14, marginBottom: 10 },
+  infoBoxLabel:    { color: Colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 2, marginBottom: 3 },
+  infoBoxValue:    { color: Colors.text, fontSize: 14, fontWeight: '700' },
+  section:         { marginTop: 20, marginBottom: 4 },
+  sectionLabel:    { color: Colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 12 },
+  description:     { color: Colors.textSecondary, fontSize: 14, lineHeight: 22 },
+  tagsRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tag:             { backgroundColor: Colors.accentDim, borderWidth: 1, borderColor: Colors.accent + '40', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
+  tagText:         { color: Colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  emptyAttendees:  { color: Colors.textMuted, fontSize: 13, fontStyle: 'italic' },
+  attendeeRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14 },
+  bubbleStack:     { flexDirection: 'row', alignItems: 'center' },
+  bubble:          { width: 34, height: 34, borderRadius: 17, borderWidth: 2, backgroundColor: Colors.inputBg, justifyContent: 'center', alignItems: 'center' },
+  bubbleOverflow:  { backgroundColor: Colors.card, borderColor: Colors.cardBorder },
+  bubbleOverflowText: { color: Colors.textMuted, fontSize: 10, fontWeight: '900' },
+  attendeeSeeAll:  { flex: 1, color: Colors.text, fontSize: 13, fontWeight: '700' },
+  hostBadge:       { position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
+  joinBtn:         { backgroundColor: Colors.accent, borderRadius: 14, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 28, shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 10 },
+  joinBtnLeave:    { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.accent },
+  joinBtnText:     { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
+  joinBtnTextLeave:{ color: Colors.accent },
+  cancelBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 28, borderWidth: 1, borderColor: '#FF3B3040', borderRadius: 14, paddingVertical: 16, backgroundColor: '#FF3B3010' },
+  cancelBtnText:   { color: '#FF3B30', fontSize: 13, fontWeight: '900', letterSpacing: 2 },
+});
+
+const pc = StyleSheet.create({
+  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', justifyContent: 'flex-end' },
+  dimArea:   { flex: 1 },
+  // Close button floats above the sheet, never inside it
+  closeBtn:  { position: 'absolute', bottom: '100%', alignSelf: 'flex-end', right: 20, marginBottom: 12, width: 36, height: 36, borderRadius: 18, backgroundColor: '#1A1A2E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#2A2A3E' },
+  sheet:     { backgroundColor: '#080810', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: '#1A1A2E', paddingBottom: 40, overflow: 'visible' },
+  handle:    { width: 36, height: 4, borderRadius: 2, backgroundColor: '#2A2A3E', alignSelf: 'center', marginTop: 14, marginBottom: 10 },
+  cardWrap:  { alignItems: 'center', paddingBottom: 8 },
+  // Scale down slightly so the card's perspective rotation never clips against the sheet edges
+  cardScale: { transform: [{ scale: 0.88 }], transformOrigin: 'top center' },
+  hintRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  hintText:  { color: Colors.textMuted, fontSize: 11, fontWeight: '500' },
+  notFound:  { color: Colors.textMuted, textAlign: 'center', padding: 40 },
+});
+
+const as = StyleSheet.create({
+  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', justifyContent: 'flex-end' },
+  dimArea:   { flex: 1 },
+  sheet:     { backgroundColor: '#080810', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: '#1A1A2E', maxHeight: '75%' },
+  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: 14, paddingHorizontal: 20, paddingBottom: 4, zIndex: 10 },
+  handle:    { width: 36, height: 4, borderRadius: 2, backgroundColor: '#2A2A3E' },
+  closeBtn:  { position: 'absolute', right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: '#1A1A2E', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  title:     { color: Colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 2, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  list:      { paddingHorizontal: 16, paddingBottom: 8 },
+  row:       { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.cardBorder },
+  avatar:    { width: 44, height: 44, borderRadius: 22, borderWidth: 2, backgroundColor: Colors.inputBg, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6 },
+  hostBadge: { position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.accent, justifyContent: 'center', alignItems: 'center' },
+  info:      { flex: 1 },
+  nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  username:  { color: Colors.text, fontSize: 14, fontWeight: '800' },
+  hostTag:   { fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  car:       { fontSize: 11, fontWeight: '600', marginTop: 2 },
 });

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, TouchableOpacity, Dimensions, Animated, Easing, Image, Modal, ScrollView } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
@@ -11,12 +12,9 @@ export const CARD_HEIGHT = CARD_WIDTH * 1.55;
 // ── Card style options ────────────────────────────────────────────────────────
 
 export const CARD_BACKGROUNDS = [
-  { id: 'original',  label: 'Original',  color: '#0D0D1F' },
-  { id: 'black',     label: 'Black',     color: '#000000' },
-  { id: 'carbon',    label: 'Carbon',    color: '#111111' },
-  { id: 'platinum',  label: 'Platinum',  color: '#90A4AE' },
-  { id: 'gold',      label: 'Gold',      color: '#C9941A' },
-  { id: 'white',     label: 'White',     color: '#F5F5F5' },
+  { id: 'original', label: 'Original', color: '#0D0D1F' },
+  { id: 'black',    label: 'Black',    color: '#000000' },
+  { id: 'white',    label: 'White',    color: '#F5F5F5' },
 ];
 
 export const OUTLINE_COLORS = [
@@ -31,14 +29,7 @@ export const OUTLINE_COLORS = [
   { id: 'white',  color: '#FFFFFF' },
 ];
 
-export const AURA_OPTIONS = [
-  { id: 'none',            label: 'None',           color: 'transparent', icon: '○'  },
-  { id: 'midnight_purple', label: 'Midnight Purple', color: '#9B00FF',    icon: '🌀' },
-  { id: 'bolt',            label: 'BOLT',            color: '#00F5FF',    icon: '⚡' },
-  { id: 'miami_pink',      label: 'Miami Pink',      color: '#FF0080',    icon: '🌴' },
-  { id: 'ghost_white',     label: 'Ghost White',     color: '#FFFFFF',    icon: '👻' },
-  { id: 'sunset',          label: 'SUNSET',          color: '#FF8C00',    icon: '🌅' },
-];
+export const AURA_OPTIONS: { id: string; label: string; color: string; icon: string }[] = [];
 
 
 // ── Background textures ───────────────────────────────────────────────────────
@@ -84,6 +75,7 @@ function CardBgTexture({ backgroundId }: { backgroundId: string }) {
 
 export interface CardData {
   id: string;
+  skrrId?: string;
   username: string;
   location: string;
   profilePhoto?: string | null;
@@ -113,9 +105,55 @@ export interface CardData {
   };
 }
 
-// ── Aura effect components ────────────────────────────────────────────────────
+// ── Full-card aura effects ────────────────────────────────────────────────────
+// Each aura is an absoluteFill layer rendered between the card background
+// and the card content. overflow:hidden on the card clips everything cleanly.
 
-// ── Midnight Purple: Ultra Instinct — non-synced flickering energy + outward particles ──
+// ── DARK MATTER ───────────────────────────────────────────────────────────────
+function DarkMatterAura() {
+  return (
+    <View style={[StyleSheet.absoluteFill, { borderRadius: 20, overflow: 'hidden' }]}>
+      <LottieView
+        source={require('../assets/Looping Energy Orb.json')}
+        autoPlay
+        loop
+        style={{
+          position: 'absolute',
+          width: CARD_WIDTH * 1.8,
+          height: CARD_WIDTH * 1.8,
+          top: CARD_HEIGHT / 2 - CARD_WIDTH * 0.9,
+          left: CARD_WIDTH / 2 - CARD_WIDTH * 0.9,
+        }}
+        resizeMode="cover"
+      />
+      {/* Dark overlay — keeps text readable */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4,0,12,0.35)' }]} />
+    </View>
+  );
+}
+
+function SynthwaveAuraCard() {
+  return (
+    <View style={[StyleSheet.absoluteFill, { borderRadius: 20, overflow: 'hidden' }]}>
+      <LottieView
+        source={require('../assets/Gradient Dots Background.json')}
+        autoPlay
+        loop
+        style={{ position: 'absolute', width: CARD_WIDTH, height: CARD_HEIGHT }}
+        resizeMode="cover"
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,0,20,0.30)' }]} />
+    </View>
+  );
+}
+
+function CardAuraEffect({ aura }: { aura: string }) {
+  if (aura === 'midnight_purple') return <DarkMatterAura />;
+  if (aura === 'miami_pink')      return <SynthwaveAuraCard />;
+  return null;
+}
+
+// ── Legacy per-avatar components (kept until each is rebuilt as full-card) ────
 function UltraParticle({ angle, delay, color }: { angle: number; delay: number; color: string }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -441,11 +479,8 @@ function HeartbeatAura() {
 }
 
 function AuraEffect({ aura }: { aura: string }) {
-  if (aura === 'midnight_purple') return <UltraInstinctAura />;
-  if (aura === 'bolt')            return <NosFlameAura />;
-  if (aura === 'miami_pink')      return <SynthwaveAura />;
-  if (aura === 'ghost_white')     return <AngelicAura />;
-  if (aura === 'sunset')          return <HeartbeatAura />;
+  if (aura === 'bolt')       return <NosFlameAura />;
+  if (aura === 'miami_pink') return <SynthwaveAura />;
   return null;
 }
 
@@ -453,7 +488,6 @@ function AuraEffect({ aura }: { aura: string }) {
 
 export default function FlipCard({ data }: { data: CardData }) {
   const [isFlipped, setIsFlipped] = useState(false);
-  const [showRankInfo, setShowRankInfo] = useState(false);
   const animValue = useRef(new Animated.Value(0)).current;
 
   const handleFlip = () => {
@@ -465,27 +499,30 @@ export default function FlipCard({ data }: { data: CardData }) {
   const frontRotate = animValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const backRotate  = animValue.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] });
 
-  const outlineColor  = data.cardStyle?.outlineColor ?? Colors.accent;
-  const backgroundId  = data.cardStyle?.background ?? 'original';
-  const bgColor       = CARD_BACKGROUNDS.find(b => b.id === backgroundId)?.color ?? Colors.card;
+  // backfaceVisibility is unreliable on iOS inside Modals — opacity is the reliable fallback
+  const frontOpacity = animValue.interpolate({ inputRange: [0, 0.49, 0.5, 1], outputRange: [1, 1, 0, 0] });
+  const backOpacity  = animValue.interpolate({ inputRange: [0, 0.49, 0.5, 1], outputRange: [0, 0, 1, 1] });
+
+  const outlineColor = data.cardStyle?.outlineColor ?? Colors.accent;
+  const backgroundId = data.cardStyle?.background ?? 'original';
+  const bgColor      = CARD_BACKGROUNDS.find(b => b.id === backgroundId)?.color ?? Colors.card;
 
   return (
     <>
       <View style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
         <Animated.View
           pointerEvents={isFlipped ? 'none' : 'box-none'}
-          style={[StyleSheet.absoluteFill, { transform: [{ perspective: 1200 }, { rotateY: frontRotate }], backfaceVisibility: 'hidden' }]}
+          style={[StyleSheet.absoluteFill, { opacity: frontOpacity, transform: [{ perspective: 1200 }, { rotateY: frontRotate }], backfaceVisibility: 'hidden' }]}
         >
-          <CardFront data={data} onFlip={handleFlip} outlineColor={outlineColor} bgColor={bgColor} backgroundId={backgroundId} onShowRankInfo={() => setShowRankInfo(true)} />
+          <CardFront data={data} onFlip={handleFlip} outlineColor={outlineColor} bgColor={bgColor} backgroundId={backgroundId} />
         </Animated.View>
         <Animated.View
           pointerEvents={isFlipped ? 'box-none' : 'none'}
-          style={[StyleSheet.absoluteFill, { transform: [{ perspective: 1200 }, { rotateY: backRotate }], backfaceVisibility: 'hidden' }]}
+          style={[StyleSheet.absoluteFill, { opacity: backOpacity, transform: [{ perspective: 1200 }, { rotateY: backRotate }], backfaceVisibility: 'hidden' }]}
         >
           <CardBack data={data} onFlip={handleFlip} outlineColor={outlineColor} bgColor={bgColor} backgroundId={backgroundId} />
         </Animated.View>
       </View>
-      <RankInfoModal visible={showRankInfo} onClose={() => setShowRankInfo(false)} />
     </>
   );
 }
@@ -614,7 +651,7 @@ function GearShiftIcon({ gearNum, color }: { gearNum: number; color: string }) {
                 borderColor: '#333355',
                 shadowColor: lit ? color : 'transparent',
                 shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: lit ? 0.9 : 0,
+                shadowOpacity: lit ? 0.5 : 0,
                 shadowRadius: 5,
               }} />
             );
@@ -633,7 +670,7 @@ function GearShiftIcon({ gearNum, color }: { gearNum: number; color: string }) {
           backgroundColor: color,
           shadowColor: color,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
+          shadowOpacity: 0.4,
           shadowRadius: 4,
         }} />
       )}
@@ -703,9 +740,9 @@ const rm = StyleSheet.create({
 // ── Card front ────────────────────────────────────────────────────────────────
 
 function CardFront({
-  data, onFlip, outlineColor, bgColor, backgroundId, onShowRankInfo,
+  data, onFlip, outlineColor, bgColor, backgroundId,
 }: {
-  data: CardData; onFlip: () => void; outlineColor: string; bgColor: string; backgroundId: string; onShowRankInfo: () => void;
+  data: CardData; onFlip: () => void; outlineColor: string; bgColor: string; backgroundId: string;
 }) {
   const aura = data.cardStyle?.aura ?? 'none';
   const isWhite = backgroundId === 'white';
@@ -717,8 +754,14 @@ function CardFront({
   return (
     <View style={[styles.card, { backgroundColor: bgColor, borderColor: outlineColor, shadowColor: outlineColor }]}>
       <CardBgTexture backgroundId={backgroundId} />
+      <CardAuraEffect aura={aura} />
       <View style={styles.cardInner}>
         <View style={styles.topRow}>
+          {data.skrrId ? (
+            <View style={[styles.skrrIdBadge, { borderColor: outlineColor + '50', backgroundColor: outlineColor + '10' }]}>
+              <Text style={[styles.skrrIdText, { color: outlineColor }]}>#{data.skrrId}</Text>
+            </View>
+          ) : <View />}
           <Pressable style={[styles.flipBtn, { borderColor: outlineColor + '80', backgroundColor: outlineColor + '15' }]} onPress={onFlip}>
             <Text style={[styles.flipBtnText, { color: outlineColor }]}>VEHICLE STATS</Text>
             <Ionicons name="chevron-forward" size={10} color={outlineColor} />
@@ -762,36 +805,13 @@ function CardFront({
           <StatItem label="REPUTATION" value={data.stats.rating} isRating accent={outlineColor} textMuted={textMuted} />
         </View>
 
-        <View style={[styles.rankSection, { borderTopColor: dividerClr }]}>
-          <Text style={[styles.rankLabel, { color: textMuted }]}>RANK</Text>
-          <Text style={[styles.rankValue, { color: outlineColor, textShadowColor: outlineColor }]}>
-            {data.rank.toUpperCase()}
-          </Text>
-          <TouchableOpacity
-            onPress={onShowRankInfo}
-            activeOpacity={0.6}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            style={[styles.rankInfoBtn, { borderColor: outlineColor + '80', backgroundColor: outlineColor + '20', position: 'absolute', right: 0, top: 12 }]}
-          >
-            <Text style={[styles.rankInfoBtnTxt, { color: outlineColor }]}>?</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.achievementsSection, { borderTopColor: dividerClr }]}>
-          <View style={styles.achievementsHeader}>
-            <Text style={[styles.achievementsLabel, { color: textMuted }]}>ACHIEVEMENTS</Text>
-            <Text style={[styles.achievementsCount, { color: textMuted }]}>0 / 100</Text>
-          </View>
-          <View style={styles.achievementsBadges}>
-            {[...Array(6)].map((_, i) => (
-              <View key={i} style={[styles.achievementBadge, { borderColor: dividerClr }]}>
-                <Ionicons name="lock-closed" size={10} color={textMuted} />
-              </View>
-            ))}
-            <View style={[styles.achievementMore, { borderColor: dividerClr }]}>
-              <Text style={[styles.achievementMoreText, { color: textMuted }]}>+94</Text>
-            </View>
-          </View>
+        <View style={styles.skrrWordmarkWrap}>
+          <Image
+            source={require('../assets/ChatGPT Image Apr 25, 2026, 12_22_34 AM.png')}
+            style={styles.skrrWordmarkImg}
+            resizeMode="contain"
+            tintColor={outlineColor}
+          />
         </View>
 
         <View style={[styles.glowLine, { backgroundColor: outlineColor, shadowColor: outlineColor }]} />
@@ -808,6 +828,7 @@ function CardBack({
   data: CardData; onFlip: () => void; outlineColor: string; bgColor: string; backgroundId: string;
 }) {
   const [showAllMods, setShowAllMods] = React.useState(false);
+  const aura = data.cardStyle?.aura ?? 'none';
   const isWhite    = backgroundId === 'white';
   const textPrimary = isWhite ? '#111111' : Colors.text;
   const textSub     = isWhite ? '#555555' : Colors.textSecondary;
@@ -818,6 +839,7 @@ function CardBack({
   return (
     <View style={[styles.card, { backgroundColor: bgColor, borderColor: outlineColor, shadowColor: outlineColor }]}>
       <CardBgTexture backgroundId={backgroundId} />
+      <CardAuraEffect aura={aura} />
       <View style={styles.cardInner}>
         <Pressable style={[styles.flipBtn, { borderColor: outlineColor + '80', backgroundColor: outlineColor + '15' }]} onPress={onFlip}>
           <Ionicons name="chevron-back" size={10} color={outlineColor} />
@@ -874,9 +896,7 @@ function StatItem({ label, value, isRating, accent, textMuted }: { label: string
   return (
     <View style={styles.statItem}>
       <Text style={[styles.statValue, { color: accent }]}>{isRating ? `${value}★` : value}</Text>
-      <Text style={[styles.statLabel, { color: accent, textShadowColor: accent, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}>
-        {label}
-      </Text>
+      <Text style={[styles.statLabel, { color: accent }]}>{label}</Text>
     </View>
   );
 }
@@ -896,11 +916,13 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH, height: CARD_HEIGHT,
     borderRadius: 20, borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 28,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 14,
     elevation: 15, overflow: 'hidden',
   },
   cardInner: { flex: 1, padding: 20 },
-  topRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  skrrIdBadge: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
+  skrrIdText: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   flipBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4,
@@ -911,7 +933,7 @@ const styles = StyleSheet.create({
     width: 88, height: 88, borderRadius: 44,
     backgroundColor: Colors.inputBg, borderWidth: 2,
     justifyContent: 'center', alignItems: 'center',
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 8,
   },
   username: { fontSize: 22, fontWeight: '900', textAlign: 'center', letterSpacing: 1, marginBottom: 6 },
   infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 10 },
@@ -949,26 +971,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   achievementMoreText: { fontSize: 8, fontWeight: '700' },
+  skrrWordmarkWrap:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  skrrWordmarkImg:   { width: CARD_WIDTH - 40, height: 200 },
   glowLine: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 6,
   },
   carPhotoWrap: {
-    height: 95, borderRadius: 10,
+    height: 160, borderRadius: 10,
     borderWidth: 1,
     justifyContent: 'center', alignItems: 'center', marginBottom: 12, gap: 4,
   },
-  carPhotoImage: { height: 95, borderRadius: 10, marginBottom: 12, borderWidth: 1 },
+  carPhotoImage: { height: 160, borderRadius: 10, marginBottom: 10, borderWidth: 1 },
   carPhotoLabel: { fontSize: 11, fontWeight: '600' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 7 },
   statBox: {
-    flex: 1, minWidth: '45%', borderWidth: 1, borderRadius: 8, padding: 10, alignItems: 'center',
+    flex: 1, minWidth: '45%', borderWidth: 1, borderRadius: 8, padding: 7, alignItems: 'center',
   },
-  statBoxValue: { fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  statBoxValue: { fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
   statBoxLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
   engineRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 7,
   },
   engineLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
   engineValue: { fontSize: 11, fontWeight: '700' },

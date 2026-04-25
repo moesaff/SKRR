@@ -8,7 +8,6 @@ import {
   Pressable,
   Image,
   Alert,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Modal,
@@ -17,6 +16,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,7 +24,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { useUser } from '../context/UserContext';
 import { ALL_MAKES } from '../constants/carDatabase';
-import { CARD_BACKGROUNDS, AURA_OPTIONS } from '../components/FlipCard';
+import { CARD_BACKGROUNDS } from '../components/FlipCard';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+
+const GOOGLE_KEY = 'AIzaSyBN2H0Lh-y9vuNXQ4t4QFOnhMSAnLDznXY';
 
 const DRIVETRAINS = ['RWD', 'FWD', 'AWD', '4WD'];
 const CURRENT_YEAR = new Date().getFullYear();
@@ -85,60 +89,23 @@ function AuraPickerIcon({ id, color }: { id: string; color: string }) {
   }
 
   if (id === 'miami_pink') {
-    // Palm tree: trunk + 5 pill-shaped leaves radiating from trunk top
-    const leaves = [-155, -120, -90, -60, -25];
+    // Synthwave wave line — 3 sine-like humps using pill rectangles
+    const waves = [
+      { w: 8, h: 3, left: 1,  top: 10, r: '-25deg' },
+      { w: 8, h: 3, left: 9,  top: 16, r: '25deg'  },
+      { w: 8, h: 3, left: 17, top: 10, r: '-25deg' },
+    ];
     return (
       <View style={{ width: S, height: S }}>
-        {dot({ position: 'absolute', width: 3, height: 13, borderRadius: 1.5, backgroundColor: color, left: c - 1.5, top: 15 })}
-        {leaves.map((angle, i) => (
-          <View key={i} style={{ position: 'absolute', left: c, top: 15, width: 0, height: 0, transform: [{ rotate: `${angle}deg` }] }}>
-            {dot({ position: 'absolute', width: 11, height: 2.5, borderRadius: 2, backgroundColor: color, left: 0, top: -1.25, opacity: i === 2 ? 1 : 0.75 })}
-          </View>
+        {waves.map((seg, i) => (
+          <View key={i} style={[{ position: 'absolute', width: seg.w, height: seg.h, borderRadius: 2, backgroundColor: color, left: seg.left, top: seg.top, transform: [{ rotate: seg.r }] }, glow]} />
         ))}
+        {/* connect dots */}
+        {dot({ position: 'absolute', width: 26, height: 1.5, borderRadius: 1, backgroundColor: color + '55', left: 1, top: 13 })}
       </View>
     );
   }
 
-  if (id === 'ghost_white') {
-    // Ghost: clipped dome + side pillars + eye dots + 3 wavy bumps
-    return (
-      <View style={{ width: S, height: S }}>
-        {/* Top dome — half circle using overflow:hidden clip */}
-        <View style={{ position: 'absolute', width: 18, height: 9, overflow: 'hidden', left: c - 9, top: 3 }}>
-          <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: color, ...glow }} />
-        </View>
-        {/* Left side pillar */}
-        {dot({ position: 'absolute', width: 2, height: 12, borderRadius: 1, backgroundColor: color, left: c - 9,     top: 11 })}
-        {/* Right side pillar */}
-        {dot({ position: 'absolute', width: 2, height: 12, borderRadius: 1, backgroundColor: color, left: c + 7,     top: 11 })}
-        {/* Eyes */}
-        {dot({ position: 'absolute', width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: color, left: c - 5.5, top: 8 })}
-        {dot({ position: 'absolute', width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: color, left: c + 2,   top: 8 })}
-        {/* Wavy bottom bumps */}
-        {[c - 9, c - 3, c + 3].map((x, i) => (
-          <View key={i} style={[{ position: 'absolute', width: 6, height: 5, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderWidth: 2, borderTopWidth: 0, borderColor: color, left: x, top: 21 }, glow]} />
-        ))}
-      </View>
-    );
-  }
-
-  if (id === 'sunset') {
-    const sunY = 20, sunR = 7;
-    return (
-      <View style={{ width: S, height: S }}>
-        {/* Horizon line */}
-        {dot({ position: 'absolute', width: 26, height: 2, borderRadius: 1, backgroundColor: color, left: 2, top: sunY - 1 })}
-        {/* Sun half circle */}
-        {dot({ position: 'absolute', width: sunR * 2, height: sunR, borderTopLeftRadius: sunR, borderTopRightRadius: sunR, backgroundColor: color, left: c - sunR, top: sunY - sunR })}
-        {/* Rays from sun center */}
-        {[-45, -22, 0, 22, 45].map((angle, i) => (
-          <View key={i} style={{ position: 'absolute', left: c, top: sunY, width: 0, height: 0, transform: [{ rotate: `${angle}deg` }] }}>
-            {dot({ position: 'absolute', width: 2, height: 5, borderRadius: 1, backgroundColor: color, left: -1, top: -(sunR + 6), opacity: 0.8 })}
-          </View>
-        ))}
-      </View>
-    );
-  }
 
   return null;
 }
@@ -245,7 +212,7 @@ const pk = StyleSheet.create({
   overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', justifyContent: 'flex-end' },
   sheet:     { backgroundColor: '#0E0E0E', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 52, borderTopWidth: 1, borderColor: '#222' },
   title:     { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 3, textAlign: 'center', marginBottom: 24 },
-  preview:   { width: 72, height: 72, borderRadius: 36, alignSelf: 'center', marginBottom: 28, borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 20 },
+  preview:   { width: 72, height: 72, borderRadius: 36, alignSelf: 'center', marginBottom: 28, borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 10 },
   stripLabel:{ color: '#555', fontSize: 9, fontWeight: '800', letterSpacing: 2, marginBottom: 8 },
   stripWrap: { width: PICKER_STRIP_W, height: 44, justifyContent: 'center', marginBottom: 20, position: 'relative' },
   strip:     { width: '100%', height: 28, borderRadius: 14 },
@@ -253,7 +220,7 @@ const pk = StyleSheet.create({
   btns:      { flexDirection: 'row', gap: 12, marginTop: 4 },
   cancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, borderWidth: 1, borderColor: '#2A2A2A', alignItems: 'center' },
   cancelTxt: { color: '#555', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  selectBtn: { flex: 2, paddingVertical: 15, borderRadius: 12, alignItems: 'center', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12 },
+  selectBtn: { flex: 2, paddingVertical: 15, borderRadius: 12, alignItems: 'center', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 6 },
   selectTxt: { fontSize: 12, fontWeight: '900', letterSpacing: 2 },
 });
 
@@ -262,7 +229,28 @@ export default function EditCard() {
   const { user, updateUser, updateCar } = useUser();
 
   const [username, setUsername] = useState(user.username);
+  const [usernameLocked, setUsernameLocked] = useState(false);
+  const [usernameDaysLeft, setUsernameDaysLeft] = useState(0);
+  const originalUsername = useRef(user.username);
+
+  useEffect(() => {
+    if (!user.id || user.id === '1') return;
+    getDoc(doc(db, 'users', user.id)).then(snap => {
+      if (!snap.exists()) return;
+      const ts = snap.data().usernameLastChanged;
+      if (!ts) return;
+      const lastChanged: Date = ts.toDate();
+      const daysSince = (Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince < 30) {
+        setUsernameLocked(true);
+        setUsernameDaysLeft(Math.ceil(30 - daysSince));
+      }
+    }).catch(() => {});
+  }, [user.id]);
+
   const [location, setLocation] = useState(user.location);
+  const [cityQuery, setCityQuery] = useState(user.location);
+  const [citySuggestions, setCitySuggestions] = useState<any[]>([]);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(user.profilePhoto);
 
   const [carYear, setCarYear] = useState(user.car.year);
@@ -288,7 +276,6 @@ export default function EditCard() {
 
   const [cardBg, setCardBg] = useState(user.cardStyle?.background ?? 'original');
   const [outlineColor, setOutlineColor] = useState(user.cardStyle?.outlineColor ?? '#FF0080');
-  const [aura, setAura] = useState(user.cardStyle?.aura ?? 'none');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   const pickImage = async (type: 'profile' | 'car') => {
@@ -310,18 +297,35 @@ export default function EditCard() {
     }
   };
 
-  const handleSave = () => {
+  async function fetchCitySuggestions(text: string) {
+    setCityQuery(text);
+    if (text.length < 2) { setCitySuggestions([]); return; }
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&types=(cities)&key=${GOOGLE_KEY}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      setCitySuggestions(json.predictions ?? []);
+    } catch { setCitySuggestions([]); }
+  }
+
+  function selectCity(prediction: any) {
+    const name = prediction.description;
+    setLocation(name);
+    setCityQuery(name);
+    setCitySuggestions([]);
+  }
+
+  const handleSave = async () => {
     if (!username.trim()) {
       Alert.alert('Missing info', 'Username cannot be empty.');
       return;
     }
-    updateUser({
-      username: username.trim(),
-      location: location.trim(),
-      profilePhoto,
-      cardStyle: { background: cardBg, outlineColor, aura },
-    });
-    updateCar({
+    const usernameChanged = username.trim() !== originalUsername.current;
+    if (usernameChanged && usernameLocked) {
+      Alert.alert('Username Locked', `You can change your username in ${usernameDaysLeft} day${usernameDaysLeft === 1 ? '' : 's'}.`);
+      return;
+    }
+    const carData = {
       year: carYear,
       make: make.trim(),
       model: model.trim(),
@@ -332,7 +336,29 @@ export default function EditCard() {
       drivetrain,
       engine: engine.trim(),
       mods: modsText.split('\n').map((m) => m.trim()).filter(Boolean),
+    };
+    updateUser({
+      username: username.trim(),
+      location: location.trim(),
+      profilePhoto,
+      cardStyle: { background: cardBg, outlineColor, aura: 'none' },
     });
+    updateCar(carData);
+    if (user.id && user.id !== '1') {
+      try {
+        await setDoc(doc(db, 'users', user.id), {
+          username: username.trim(),
+          city: location.trim(),
+          profilePhoto: profilePhoto ?? null,
+          cardStyle: { background: cardBg, outlineColor, aura: 'none' },
+          car: carData,
+          ...(usernameChanged ? { usernameLastChanged: serverTimestamp() } : {}),
+        }, { merge: true });
+      } catch (e: any) {
+        Alert.alert('Save failed', e.message);
+        return;
+      }
+    }
     router.back();
   };
 
@@ -361,8 +387,40 @@ export default function EditCard() {
             </View>
           </Pressable>
 
-          <Field label="USERNAME" value={username} onChangeText={setUsername} placeholder="Your username" icon="at" />
-          <Field label="CITY" value={location} onChangeText={setLocation} placeholder="e.g. Los Angeles, CA" icon="location" />
+          <Field
+            label="USERNAME"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Your username"
+            icon="at"
+            editable={!usernameLocked}
+            hint={usernameLocked ? `Locked · ${usernameDaysLeft} day${usernameDaysLeft === 1 ? '' : 's'} until next change` : undefined}
+          />
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>CITY</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="location" size={14} color={Colors.accent} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.input}
+                value={cityQuery}
+                onChangeText={fetchCitySuggestions}
+                placeholder="e.g. Los Angeles, CA"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="words"
+              />
+            </View>
+            {citySuggestions.length > 0 && (
+              <View style={styles.suggestionsBox}>
+                {citySuggestions.map((p: any) => (
+                  <Pressable key={p.place_id} style={styles.suggestionItem} onPress={() => selectCity(p)}>
+                    <Ionicons name="location-outline" size={12} color={Colors.accent} />
+                    <Text style={styles.suggestionText} numberOfLines={1}>{p.description}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
 
           {/* ── VEHICLE ── */}
           <SectionHeader title="VEHICLE" icon="car-sport" />
@@ -501,25 +559,6 @@ export default function EditCard() {
             onSelect={setOutlineColor}
           />
 
-          <Text style={styles.label}>AURA</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-            <View style={{ flexDirection: 'row', gap: 8, paddingRight: 4 }}>
-              {AURA_OPTIONS.map((a) => (
-                <Pressable
-                  key={a.id}
-                  onPress={() => setAura(a.id)}
-                  style={[
-                    styles.auraOption,
-                    aura === a.id && { borderColor: a.color === 'transparent' ? '#555' : a.color, backgroundColor: (a.color === 'transparent' ? '#555' : a.color) + '20' },
-                  ]}
-                >
-                  <AuraPickerIcon id={a.id} color={a.color === 'transparent' ? '#555' : a.color} />
-                  <Text style={[styles.auraLabel, aura === a.id && { color: Colors.text }]}>{a.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
-
           <Pressable style={styles.saveBtn} onPress={handleSave}>
             <Ionicons name="checkmark-circle" size={18} color="#000" />
             <Text style={styles.saveBtnText}>SAVE CARD</Text>
@@ -657,12 +696,21 @@ function SectionHeader({ title, icon }: { title: string; icon: string }) {
   );
 }
 
-function Field({ label, value, onChangeText, placeholder, keyboardType, icon, accent }: any) {
+function Field({ label, value, onChangeText, placeholder, keyboardType, icon, accent, editable, hint }: any) {
+  const locked = editable === false;
   return (
     <View style={styles.fieldWrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputWrapper}>
-        {icon && <Ionicons name={icon} size={14} color={Colors.accent} style={{ marginRight: 8 }} />}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <Text style={styles.label}>{label}</Text>
+        {hint && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="lock-closed" size={10} color={Colors.textMuted} />
+            <Text style={{ color: Colors.textMuted, fontSize: 10, fontWeight: '600' }}>{hint}</Text>
+          </View>
+        )}
+      </View>
+      <View style={[styles.inputWrapper, locked && { opacity: 0.45 }]}>
+        {icon && <Ionicons name={icon} size={14} color={locked ? Colors.textMuted : Colors.accent} style={{ marginRight: 8 }} />}
         <TextInput
           style={[styles.input, accent && { color: accent }]}
           value={value}
@@ -671,6 +719,7 @@ function Field({ label, value, onChangeText, placeholder, keyboardType, icon, ac
           placeholderTextColor={Colors.textMuted}
           keyboardType={keyboardType ?? 'default'}
           autoCapitalize="words"
+          editable={!locked}
         />
       </View>
     </View>
@@ -685,13 +734,16 @@ const styles = StyleSheet.create({
   sectionTitle: { color: Colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   sectionLine: { flex: 1, height: 1, backgroundColor: Colors.accent + '30' },
 
+  suggestionsBox: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  suggestionText: { color: Colors.text, fontSize: 13, flex: 1 },
   photoPicker: { alignSelf: 'center', marginBottom: 20, position: 'relative' },
   profilePhotoPreview: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: Colors.accent },
   photoPlaceholder: {
     width: 90, height: 90, borderRadius: 45,
     backgroundColor: Colors.inputBg, borderWidth: 2, borderColor: Colors.accent,
     justifyContent: 'center', alignItems: 'center', gap: 4,
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 12,
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.18, shadowRadius: 6,
   },
   photoPlaceholderText: { color: Colors.accent, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
   photoEditBadge: {
@@ -757,7 +809,7 @@ const styles = StyleSheet.create({
   },
   colorPickerSwatch: {
     width: 32, height: 32, borderRadius: 16,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 6,
   },
   colorPickerLabel: { flex: 1, fontSize: 13, fontWeight: '800', letterSpacing: 1.5 },
 
@@ -771,7 +823,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24,
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 16, elevation: 10,
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
   saveBtnText: { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
 });

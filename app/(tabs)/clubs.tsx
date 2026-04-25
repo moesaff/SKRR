@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     width: 96, height: 96, borderRadius: 48,
     backgroundColor: Colors.accentDim, borderWidth: 1, borderColor: Colors.accent + '50',
     justifyContent: 'center', alignItems: 'center', marginBottom: 28,
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 24,
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.18, shadowRadius: 10,
   },
   icon: {
     textShadowColor: Colors.accent, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4,
@@ -49,6 +49,6 @@ const styles = StyleSheet.create({
   glowLine: {
     marginTop: 48, width: '60%', height: 2,
     backgroundColor: Colors.accentCyan,
-    shadowColor: Colors.accentCyan, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 12,
+    shadowColor: Colors.accentCyan, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 6,
   },
 });

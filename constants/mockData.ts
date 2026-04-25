@@ -1,5 +1,6 @@
 export const mockUser = {
   id: '1',
+  skrrId: 'JDM001',
   username: 'JDM_Ryusei',
   location: 'Los Angeles, CA',
   profilePhoto: null,
@@ -23,10 +24,10 @@ export const mockUser = {
     engine: 'SR20DET Turbocharged',
   },
   stats: {
-    meetsAttended: 47,
-    meetsHosted: 8,
-    friends: 234,
-    rating: 4.8,
+    meetsAttended: 0,
+    meetsHosted: 0,
+    friends: 0,
+    rating: 0,
   },
   rank: 'Unranked',
   cardStyle: {

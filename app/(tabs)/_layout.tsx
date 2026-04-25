@@ -1,17 +1,14 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { TouchableOpacity, Easing } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { initGlassClick, playGlassClick } from '../../services/soundService';
 
 export default function TabLayout() {
-  useEffect(() => {
-    initGlassClick();
-  }, []);
+  const router = useRouter();
 
   return (
     <Tabs
-      screenListeners={{ tabPress: () => playGlassClick() }}
+      initialRouteName="index"
       screenOptions={{
         tabBarStyle: {
           backgroundColor: Colors.tabBar,
@@ -23,9 +20,7 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textMuted,
-        tabBarIconStyle: { marginBottom: 2 },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
-        tabBarIconSize: 28,
         headerStyle: { backgroundColor: Colors.background },
         headerTintColor: Colors.text,
         headerTitleStyle: {
@@ -33,32 +28,25 @@ export default function TabLayout() {
           letterSpacing: 3,
           fontSize: 16,
           color: Colors.accent,
-          textShadowColor: Colors.accent,
-          textShadowOffset: { width: 0, height: 0 },
-          textShadowRadius: 4,
         },
         headerShadowVisible: false,
-        animation: 'fade',
+        animationEnabled: true,
+        sceneStyleInterpolator: ({ current }) => ({
+          sceneStyle: {
+            opacity: current.progress.interpolate({
+              inputRange: [-1, 0, 1],
+              outputRange: [0, 1, 0],
+            }),
+          },
+        }),
+        transitionSpec: {
+          animation: 'timing',
+          config: { duration: 180, easing: Easing.inOut(Easing.ease) },
+        },
       }}
     >
       <Tabs.Screen
-        name="clubs"
-        options={{
-          title: 'SKRR CLUBS',
-          tabBarLabel: 'Clubs',
-          tabBarIcon: ({ color }) => <Ionicons name="shield" size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="index"
-        options={{
-          title: 'REV ZONE',
-          tabBarLabel: 'Rev Zone',
-          tabBarIcon: ({ color }) => <Ionicons name="speedometer-outline" size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="discover"
         options={{
           title: 'NETWORK',
           tabBarLabel: 'Network',
@@ -73,22 +61,21 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="flag" size={28} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: 'MESSAGES',
-          tabBarLabel: 'Messages',
-          tabBarIcon: ({ color }) => <Ionicons name="chatbubbles" size={28} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="messages" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'MY CARD',
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} />,
+          headerRight: () => (
+            <TouchableOpacity onPress={() => router.push('/settings')} style={{ marginRight: 16 }}>
+              <Ionicons name="settings-outline" size={22} color={Colors.textMuted} />
+            </TouchableOpacity>
+          ),
         }}
       />
+      <Tabs.Screen name="clubs" options={{ href: null }} />
     </Tabs>
   );
 }

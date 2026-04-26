@@ -915,8 +915,8 @@ function StatBox({ label, value, accent, textMuted }: { label: string; value: st
 const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH, height: CARD_HEIGHT,
-    borderRadius: 20, borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 14,
+    borderRadius: 20, borderWidth: 2.5,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.55, shadowRadius: 20,
     elevation: 15, overflow: 'hidden',
   },
   cardInner: { flex: 1, padding: 20 },

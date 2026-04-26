@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { mockUser } from '../constants/mockData';
 
@@ -45,6 +45,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const data = snap.data();
+        // Backfill skrrId for accounts created before it was added
+        if (!data.skrrId) {
+          const generated = Math.random().toString(36).substr(2, 6).toUpperCase();
+          await updateDoc(ref, { skrrId: generated });
+          data.skrrId = generated;
+        }
         setUser({
           ...mockUser,
           id: firebaseUser.uid,

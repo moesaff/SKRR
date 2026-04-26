@@ -14,8 +14,6 @@ import { Colors } from '../constants/colors';
 export default function Settings() {
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
-  const [locationVisible, setLocationVisible] = useState(true);
-  const [profileVisible, setProfileVisible] = useState(true);
 
   async function handleLogout() {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -49,11 +47,6 @@ export default function Settings() {
         <Section title="ACCOUNT">
           <Row icon="mail" label="Change Email" onPress={() => Alert.alert('Coming soon')} />
           <Row icon="lock-closed" label="Change Password" onPress={() => Alert.alert('Coming soon')} />
-        </Section>
-
-        <Section title="PRIVACY">
-          <ToggleRow icon="location" label="Show my location" value={locationVisible} onToggle={setLocationVisible} />
-          <ToggleRow icon="person" label="Public profile" value={profileVisible} onToggle={setProfileVisible} />
         </Section>
 
         <Section title="NOTIFICATIONS">

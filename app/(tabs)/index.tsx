@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator,
   Modal, TouchableOpacity, ScrollView, TextInput, Alert,
+  KeyboardAvoidingView, Platform, Pressable, Dimensions, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,8 @@ import { db } from '../../lib/firebase';
 import { useUser } from '../../context/UserContext';
 import QRCode from 'react-native-qrcode-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import FlipCard, { CardData, CARD_HEIGHT } from '../../components/FlipCard';
+import { mockUser } from '../../constants/mockData';
 
 type ConnectedUser = {
   id: string;
@@ -24,12 +27,56 @@ type ConnectedUser = {
   cardStyle?: { outlineColor: string };
 };
 
+function firestoreToCardData(uid: string, d: any): CardData {
+  return {
+    ...mockUser,
+    id: uid,
+    skrrId: d.skrrId ?? '',
+    username: d.username ?? 'Unknown',
+    location: d.city ?? '',
+    profilePhoto: d.profilePhoto ?? null,
+    car: {
+      ...mockUser.car,
+      year: Number(d.car?.year) || mockUser.car.year,
+      make: d.car?.make ?? mockUser.car.make,
+      model: d.car?.model ?? mockUser.car.model,
+      photo: d.car?.photo ?? null,
+      hp: Number(d.car?.hp) || 0,
+      torque: Number(d.car?.torque) || 0,
+      mods: d.car?.mods ?? [],
+      zeroToSixty: d.car?.zeroToSixty ?? '',
+      drivetrain: d.car?.drivetrain ?? '',
+      engine: d.car?.engine ?? '',
+    },
+    stats: {
+      meetsAttended: d.meetsAttended ?? 0,
+      meetsHosted: d.meetsHosted ?? 0,
+      friends: (d.connections ?? d.following ?? []).length,
+      rating: d.rating ?? 0,
+    },
+    rank: d.rank ?? '',
+    cardStyle: d.cardStyle ?? mockUser.cardStyle,
+  };
+}
+
 export default function Network() {
   const { user: me } = useUser();
   const [connections, setConnections] = useState<ConnectedUser[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<ConnectedUser[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [profileCard, setProfileCard] = useState<CardData | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  async function viewProfile(uid: string) {
+    setLoadingProfile(true);
+    try {
+      const snap = await getDoc(doc(db, 'users', uid));
+      if (snap.exists()) setProfileCard(firestoreToCardData(uid, snap.data()));
+    } finally {
+      setLoadingProfile(false);
+    }
+  }
 
   // Listen to my user doc for connection changes
   useEffect(() => {
@@ -127,13 +174,14 @@ export default function Network() {
               <View style={s.section}>
                 <Text style={s.sectionLabel}>REQUESTS</Text>
                 {incomingRequests.map(u => (
-                  <View key={u.id} style={s.requestCard}>
+                  <TouchableOpacity key={u.id} style={s.requestCard} onPress={() => viewProfile(u.id)} activeOpacity={0.75}>
                     <View style={[s.reqAvatar, { borderColor: accent(u) }]}>
                       <Ionicons name="person" size={20} color={Colors.textMuted} />
                     </View>
                     <View style={s.reqInfo}>
                       <Text style={s.reqUsername}>{u.username}</Text>
                       {u.skrrId ? <Text style={[s.reqSkrrId, { color: accent(u) }]}>#{u.skrrId}</Text> : null}
+                      <Text style={s.reqViewCard}>Tap to view card →</Text>
                     </View>
                     <TouchableOpacity style={[s.reqAccept, { backgroundColor: accent(u) }]} onPress={() => acceptRequest(u)}>
                       <Ionicons name="checkmark" size={16} color="#000" />
@@ -141,7 +189,7 @@ export default function Network() {
                     <TouchableOpacity style={s.reqDecline} onPress={() => declineRequest(u)}>
                       <Ionicons name="close" size={16} color={Colors.textMuted} />
                     </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
@@ -196,6 +244,27 @@ export default function Network() {
         mySkrrId={me.skrrId ?? ''}
         myConnections={connections.map(c => c.id)}
       />
+
+      {/* Profile card viewer */}
+      <Modal visible={!!profileCard} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setProfileCard(null)}>
+        <View style={s.profileOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProfileCard(null)} />
+          {profileCard && (
+            <View style={{ transform: [{ scale: 0.88 }] }}>
+              <FlipCard data={profileCard} />
+            </View>
+          )}
+          <TouchableOpacity style={s.profileCloseBtn} onPress={() => setProfileCard(null)}>
+            <Ionicons name="close" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {loadingProfile && (
+        <View style={s.profileLoadingOverlay}>
+          <ActivityIndicator color={Colors.accent} size="large" />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -286,7 +355,10 @@ function AddModal({ visible, onClose, myId, myUsername, mySkrrId, myConnections 
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
-      <View style={as.overlay}>
+      <KeyboardAvoidingView
+        style={as.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={as.sheet}>
           <View style={as.header}>
             <Text style={as.title}>ADD TO NETWORK</Text>
@@ -369,7 +441,7 @@ function AddModal({ visible, onClose, myId, myUsername, mySkrrId, myConnections 
             />
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -573,6 +645,10 @@ const s = StyleSheet.create({
   reqSkrrId:      { fontSize: 11, fontWeight: '700', marginTop: 2 },
   reqAccept:      { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   reqDecline:     { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder, justifyContent: 'center', alignItems: 'center' },
+  reqViewCard:    { color: Colors.textMuted, fontSize: 10, fontWeight: '600', marginTop: 2 },
+  profileOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
+  profileCloseBtn:{ position: 'absolute', top: 60, right: 24, width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A2E', justifyContent: 'center', alignItems: 'center' },
+  profileLoadingOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
 
   // Connections
   connCard:       { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.cardBorder, padding: 12, marginBottom: 8, gap: 12 },

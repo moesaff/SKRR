@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator,
-  Modal, TouchableOpacity, ScrollView, TextInput, Alert,
+  Modal, TouchableOpacity, ScrollView, FlatList, TextInput, Alert,
   KeyboardAvoidingView, Platform, Pressable, Dimensions, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -204,22 +204,27 @@ export default function Network() {
                   <Text style={s.emptyText}>Add people by SKRR ID, QR code, or at a meet.</Text>
                 </View>
               ) : (
-                connections.map(u => (
-                  <View key={u.id} style={s.connCard}>
-                    <View style={[s.connAvatar, { borderColor: accent(u), shadowColor: accent(u) }]}>
-                      <Ionicons name="person" size={22} color={Colors.textMuted} />
+                <FlatList
+                  data={connections}
+                  keyExtractor={u => u.id}
+                  scrollEnabled={false}
+                  renderItem={({ item: u }) => (
+                    <View style={s.connCard}>
+                      <View style={[s.connAvatar, { borderColor: accent(u), shadowColor: accent(u) }]}>
+                        <Ionicons name="person" size={22} color={Colors.textMuted} />
+                      </View>
+                      <View style={s.connInfo}>
+                        <Text style={s.connUsername}>{u.username}</Text>
+                        <Text style={s.connCar} numberOfLines={1}>
+                          {[u.car.year, u.car.make, u.car.model].filter(Boolean).join(' ')}
+                        </Text>
+                      </View>
+                      {u.skrrId ? (
+                        <Text style={[s.connSkrrId, { color: accent(u) }]}>#{u.skrrId}</Text>
+                      ) : null}
                     </View>
-                    <View style={s.connInfo}>
-                      <Text style={s.connUsername}>{u.username}</Text>
-                      <Text style={s.connCar} numberOfLines={1}>
-                        {[u.car.year, u.car.make, u.car.model].filter(Boolean).join(' ')}
-                      </Text>
-                    </View>
-                    {u.skrrId ? (
-                      <Text style={[s.connSkrrId, { color: accent(u) }]}>#{u.skrrId}</Text>
-                    ) : null}
-                  </View>
-                ))
+                  )}
+                />
               )}
             </View>
 

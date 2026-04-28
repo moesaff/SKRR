@@ -27,11 +27,6 @@ export default function Profile() {
           <Ionicons name="pencil" size={14} color={Colors.accent} />
           <Text style={styles.editBtnText}>EDIT CARD</Text>
         </Pressable>
-
-        <Pressable style={styles.shareBtn}>
-          <Ionicons name="share-social-outline" size={14} color={Colors.textSecondary} />
-          <Text style={styles.shareBtnText}>SHARE CARD</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -44,36 +39,12 @@ const styles = StyleSheet.create({
   hintText: { color: Colors.textMuted, fontSize: 11, fontWeight: '500' },
   cardWrapper: { marginBottom: 28 },
   editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: 32,
-    paddingVertical: 13,
-    backgroundColor: Colors.accentDim,
-    marginBottom: 12,
-    width: '100%',
-    justifyContent: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: Colors.accent, borderRadius: 10,
+    paddingHorizontal: 32, paddingVertical: 13,
+    backgroundColor: Colors.accentDim, marginBottom: 12,
+    width: '100%', justifyContent: 'center',
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 10,
   },
   editBtnText: { color: Colors.accent, fontSize: 13, fontWeight: '900', letterSpacing: 2 },
-  shareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    borderRadius: 10,
-    paddingHorizontal: 32,
-    paddingVertical: 13,
-    backgroundColor: Colors.card,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  shareBtnText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '700', letterSpacing: 2 },
 });

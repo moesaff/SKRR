@@ -487,7 +487,7 @@ function AuraEffect({ aura }: { aura: string }) {
 
 // ── Flip card ─────────────────────────────────────────────────────────────────
 
-export default function FlipCard({ data }: { data: CardData }) {
+const FlipCard = React.memo(function FlipCard({ data }: { data: CardData }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const animValue = useRef(new Animated.Value(0)).current;
 
@@ -526,7 +526,9 @@ export default function FlipCard({ data }: { data: CardData }) {
       </View>
     </>
   );
-}
+});
+
+export default FlipCard;
 
 // ── Rank info data + modal ────────────────────────────────────────────────────
 
@@ -740,10 +742,10 @@ const rm = StyleSheet.create({
 
 // ── Card front ────────────────────────────────────────────────────────────────
 
-function CardFront({
+export function CardFront({
   data, onFlip, outlineColor, bgColor, backgroundId,
 }: {
-  data: CardData; onFlip: () => void; outlineColor: string; bgColor: string; backgroundId: string;
+  data: CardData; onFlip?: () => void; outlineColor: string; bgColor: string; backgroundId: string;
 }) {
   const aura = data.cardStyle?.aura ?? 'none';
   const isWhite = backgroundId === 'white';
@@ -823,10 +825,10 @@ function CardFront({
 
 // ── Card back ─────────────────────────────────────────────────────────────────
 
-function CardBack({
+export function CardBack({
   data, onFlip, outlineColor, bgColor, backgroundId,
 }: {
-  data: CardData; onFlip: () => void; outlineColor: string; bgColor: string; backgroundId: string;
+  data: CardData; onFlip?: () => void; outlineColor: string; bgColor: string; backgroundId: string;
 }) {
   const [showAllMods, setShowAllMods] = React.useState(false);
   const aura = data.cardStyle?.aura ?? 'none';

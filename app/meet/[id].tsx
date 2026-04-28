@@ -292,11 +292,13 @@ export default function MeetDetail() {
           attendeeUids: arrayRemove(me.id),
           attendees: increment(-1),
         });
+        await updateDoc(doc(db, 'users', me.id), { meetsAttended: increment(-1) });
       } else {
         await updateDoc(doc(db, 'meets', meet.id), {
           attendeeUids: arrayUnion(me.id),
           attendees: increment(1),
         });
+        await updateDoc(doc(db, 'users', me.id), { meetsAttended: increment(1) });
       }
     } catch (e: any) {
       Alert.alert('Error', e.message);

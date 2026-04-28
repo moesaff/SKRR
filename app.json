@@ -18,6 +18,11 @@
       "bundleIdentifier": "com.skrr.app",
       "config": {
         "googleMapsApiKey": "AIzaSyBN2H0Lh-y9vuNXQ4t4QFOnhMSAnLDznXY"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SKRR uses your location to show nearby car meets and help you post meets in your area.",
+        "NSPhotoLibraryUsageDescription": "SKRR uses your photo library so you can add a profile photo and car photo to your card.",
+        "NSPhotoLibraryAddUsageDescription": "SKRR saves photos to your library when sharing your card."
       }
     },
     "android": {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, Dimensions,
+  View, Text, StyleSheet, ScrollView, FlatList, TextInput, Dimensions,
   TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Modal, ActivityIndicator,
   NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
@@ -628,13 +628,17 @@ export default function Meets() {
               <Text style={s.emptyText}>No meets within {RADIUS_KM}km. Check the Map tab to see meets worldwide.</Text>
             </View>
           ) : (
-            nearbyMeets.map(m => (
-              <MeetCard
-                key={m.id}
-                meet={m}
-                distance={userCoords && m.lat && m.lng ? haversineKm(userCoords.lat, userCoords.lng, m.lat, m.lng) : null}
-              />
-            ))
+            <FlatList
+              data={nearbyMeets}
+              keyExtractor={m => m.id}
+              scrollEnabled={false}
+              renderItem={({ item: m }) => (
+                <MeetCard
+                  meet={m}
+                  distance={userCoords && m.lat && m.lng ? haversineKm(userCoords.lat, userCoords.lng, m.lat, m.lng) : null}
+                />
+              )}
+            />
           )}
         </View>
       </ScrollView>

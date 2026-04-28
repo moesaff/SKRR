@@ -13,9 +13,9 @@ import { Colors } from '../constants/colors';
 
 // ── Replace these with your Notion page URLs after publishing ─────────────────
 const URLS = {
-  tos:     'PASTE_YOUR_NOTION_TOS_URL_HERE',
-  privacy: 'PASTE_YOUR_NOTION_PRIVACY_URL_HERE',
-  faq:     'PASTE_YOUR_NOTION_FAQ_URL_HERE',
+  tos:     'https://moesaff.github.io/SKRR/tos.html',
+  privacy: 'https://moesaff.github.io/SKRR/privacy.html',
+  faq:     'https://moesaff.github.io/SKRR/faq.html',
 };
 
 function openURL(url: string) {

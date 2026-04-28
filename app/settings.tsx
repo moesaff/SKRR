@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Switch, Alert,
+  Switch, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,21 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/colors';
+
+// ── Replace these with your Notion page URLs after publishing ─────────────────
+const URLS = {
+  tos:     'PASTE_YOUR_NOTION_TOS_URL_HERE',
+  privacy: 'PASTE_YOUR_NOTION_PRIVACY_URL_HERE',
+  faq:     'PASTE_YOUR_NOTION_FAQ_URL_HERE',
+};
+
+function openURL(url: string) {
+  if (url.startsWith('PASTE')) {
+    Alert.alert('Coming Soon', 'This page is being set up.');
+    return;
+  }
+  Linking.openURL(url);
+}
 
 export default function Settings() {
   const router = useRouter();
@@ -54,13 +69,13 @@ export default function Settings() {
         </Section>
 
         <Section title="LEGAL">
-          <Row icon="document-text" label="Terms of Service" onPress={() => Alert.alert('Coming soon')} />
-          <Row icon="shield-checkmark" label="Privacy Policy" onPress={() => Alert.alert('Coming soon')} />
+          <Row icon="document-text" label="Terms of Service" onPress={() => openURL(URLS.tos)} />
+          <Row icon="shield-checkmark" label="Privacy Policy" onPress={() => openURL(URLS.privacy)} />
         </Section>
 
         <Section title="SUPPORT">
-          <Row icon="help-circle" label="Help & FAQ" onPress={() => Alert.alert('Coming soon')} />
-          <Row icon="chatbubble-ellipses" label="Contact Us" onPress={() => Alert.alert('Coming soon')} />
+          <Row icon="help-circle" label="Help & FAQ" onPress={() => openURL(URLS.faq)} />
+          <Row icon="chatbubble-ellipses" label="Contact Us" onPress={() => Linking.openURL('mailto:skrr.support@gmail.com')} />
         </Section>
 
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>

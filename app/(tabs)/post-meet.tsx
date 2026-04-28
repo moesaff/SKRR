@@ -7,10 +7,10 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Circle, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Colors } from '../../constants/colors';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, where, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useUser } from '../../context/UserContext';
 
@@ -18,10 +18,10 @@ const { width: SW, height: SH } = Dimensions.get('window');
 const CAR_TYPES = ['All Types', 'JDM', 'Euro', 'Muscle', 'Super/Hyper', 'Stance', 'Bikes'];
 const GOOGLE_KEY = 'AIzaSyBN2H0Lh-y9vuNXQ4t4QFOnhMSAnLDznXY';
 const RADIUS_OPTIONS = [
-  { label: '0.5 mi', meters: 800 },
-  { label: '1 mi',   meters: 1600 },
-  { label: '2 mi',   meters: 3200 },
-  { label: '5 mi',   meters: 8000 },
+  { label: '3.1 mi',  sublabel: '5 km',   meters: 5000   },
+  { label: '9.3 mi',  sublabel: '15 km',  meters: 15000  },
+  { label: '24.9 mi', sublabel: '40 km',  meters: 40000  },
+  { label: '62.1 mi', sublabel: '100 km', meters: 100000 },
 ];
 
 interface Meet {
@@ -172,7 +172,8 @@ function MapPicker({ onConfirm, onClose }: {
   const [search, setSearch] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pickedName = useRef<string | null>(null); // set when user picks a suggestion; cleared on manual pan
+  const pickedName = useRef<string | null>(null);
+  const [pinnedCoord, setPinnedCoord] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -220,27 +221,28 @@ function MapPicker({ onConfirm, onClose }: {
       if (loc) {
         const newRegion = { latitude: loc.lat, longitude: loc.lng, latitudeDelta: 0.02, longitudeDelta: 0.02 };
         setRegion(newRegion);
+        setPinnedCoord({ latitude: loc.lat, longitude: loc.lng });
         mapRef.current?.animateToRegion(newRegion, 600);
       }
     } catch {}
   }
 
   async function handleConfirm() {
-    // If user picked from search, use that name directly — no need to reverse-geocode
+    const coord = pinnedCoord ?? { latitude: region.latitude, longitude: region.longitude };
     if (pickedName.current) {
-      onConfirm({ lat: region.latitude, lng: region.longitude, address: pickedName.current, radiusMeters: RADIUS_OPTIONS[radiusIdx].meters });
+      onConfirm({ lat: coord.latitude, lng: coord.longitude, address: pickedName.current, radiusMeters: RADIUS_OPTIONS[radiusIdx].meters });
       return;
     }
     setGeocoding(true);
     try {
       const res = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${region.latitude},${region.longitude}&key=${GOOGLE_KEY}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coord.latitude},${coord.longitude}&key=${GOOGLE_KEY}`
       );
       const json = await res.json();
-      const address = json.results?.[0]?.formatted_address ?? (search || `${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}`);
-      onConfirm({ lat: region.latitude, lng: region.longitude, address, radiusMeters: RADIUS_OPTIONS[radiusIdx].meters });
+      const address = json.results?.[0]?.formatted_address ?? (search || `${coord.latitude.toFixed(4)}, ${coord.longitude.toFixed(4)}`);
+      onConfirm({ lat: coord.latitude, lng: coord.longitude, address, radiusMeters: RADIUS_OPTIONS[radiusIdx].meters });
     } catch {
-      onConfirm({ lat: region.latitude, lng: region.longitude, address: search || `${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}`, radiusMeters: RADIUS_OPTIONS[radiusIdx].meters });
+      onConfirm({ lat: coord.latitude, lng: coord.longitude, address: search || `${coord.latitude.toFixed(4)}, ${coord.longitude.toFixed(4)}`, radiusMeters: RADIUS_OPTIONS[radiusIdx].meters });
     } finally {
       setGeocoding(false);
     }
@@ -252,24 +254,43 @@ function MapPicker({ onConfirm, onClose }: {
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         initialRegion={region}
-        onRegionChangeComplete={(r) => { setRegion(r); pickedName.current = null; }}
+        onRegionChangeComplete={(r) => { setRegion(r); if (!pinnedCoord) pickedName.current = null; }}
         showsUserLocation
         showsCompass={false}
         customMapStyle={darkMapStyle}
       >
-        <Circle
-          center={{ latitude: region.latitude, longitude: region.longitude }}
-          radius={RADIUS_OPTIONS[radiusIdx].meters}
-          strokeColor={Colors.accent}
-          strokeWidth={2}
-          fillColor={Colors.accent + '22'}
-        />
+        {pinnedCoord ? (
+          <>
+            <Circle
+              center={pinnedCoord}
+              radius={RADIUS_OPTIONS[radiusIdx].meters}
+              strokeColor={Colors.accent}
+              strokeWidth={2}
+              fillColor={Colors.accent + '22'}
+            />
+            <Marker coordinate={pinnedCoord} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+              <View style={{ alignItems: 'center' }}>
+                <Ionicons name="location" size={40} color={Colors.accent} />
+              </View>
+            </Marker>
+          </>
+        ) : (
+          <Circle
+            center={{ latitude: region.latitude, longitude: region.longitude }}
+            radius={RADIUS_OPTIONS[radiusIdx].meters}
+            strokeColor={Colors.accent}
+            strokeWidth={2}
+            fillColor={Colors.accent + '22'}
+          />
+        )}
       </MapView>
 
-      <View style={mp.pinContainer} pointerEvents="none">
-        <Ionicons name="location" size={40} color={Colors.accent} style={{ marginBottom: 4 }} />
-        <View style={mp.pinShadow} />
-      </View>
+      {!pinnedCoord && (
+        <View style={mp.pinContainer} pointerEvents="none">
+          <Ionicons name="location" size={40} color={Colors.accent} style={{ marginBottom: 4 }} />
+          <View style={mp.pinShadow} />
+        </View>
+      )}
 
       <View style={[mp.topBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={onClose} style={mp.backBtn}>
@@ -305,7 +326,7 @@ function MapPicker({ onConfirm, onClose }: {
       )}
 
       <View style={[mp.bottomPanel, { paddingBottom: insets.bottom + 16 }]}>
-        <Text style={mp.panelHint}>Pan the map to position the pin</Text>
+        <Text style={mp.panelHint}>{pinnedCoord ? 'Pin locked · search again to change location' : 'Pan the map to position the pin'}</Text>
         <Text style={mp.radiusLabel}>MEET RADIUS</Text>
         <View style={mp.radiusRow}>
           {RADIUS_OPTIONS.map((opt, i) => (
@@ -315,6 +336,7 @@ function MapPicker({ onConfirm, onClose }: {
               onPress={() => setRadiusIdx(i)}
             >
               <Text style={[mp.radiusBtnText, i === radiusIdx && mp.radiusBtnTextActive]}>{opt.label}</Text>
+              <Text style={[mp.radiusBtnSub, i === radiusIdx && mp.radiusBtnSubActive]}>{opt.sublabel}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -377,6 +399,7 @@ function PostMeetModal({ visible, onClose }: { visible: boolean; onClose: () => 
         hostedBy: user.username,
         hostUid: user.id,
         createdAt: serverTimestamp(),
+        status: 'active',
       });
       if (user.id && user.id !== '1') {
         await updateDoc(doc(db, 'users', user.id), { meetsHosted: increment(1) });
@@ -394,7 +417,8 @@ function PostMeetModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
   const radiusLabel = pickedLoc
     ? RADIUS_OPTIONS.find(r => r.meters === pickedLoc.radiusMeters)?.label ?? ''
-    : '';
+    : ''
+;
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
@@ -482,15 +506,20 @@ function Field({ label, value, onChangeText, placeholder, multiline, icon }: any
 
 // ─── Meet Card ────────────────────────────────────────────────────────────────
 
-function MeetCard({ meet }: { meet: Meet }) {
+function MeetCard({ meet, distance }: { meet: Meet; distance: number | null }) {
   const router = useRouter();
   return (
     <TouchableOpacity activeOpacity={0.75} style={s.meetCard} onPress={() => router.push(`/meet/${meet.id}`)}>
       <View style={s.meetCardTop}>
         <Text style={s.meetTitle} numberOfLines={1}>{meet.title}</Text>
-        <View style={s.attendeesBadge}>
-          <Ionicons name="people" size={11} color={Colors.accent} />
-          <Text style={s.attendeesText}>{meet.attendees}</Text>
+        <View style={s.meetCardTopRight}>
+          {distance !== null && (
+            <Text style={s.distanceText}>{fmtDistance(distance)}</Text>
+          )}
+          <View style={s.attendeesBadge}>
+            <Ionicons name="people" size={11} color={Colors.accent} />
+            <Text style={s.attendeesText}>{meet.attendees}</Text>
+          </View>
         </View>
       </View>
       <View style={s.meetRow}>
@@ -515,23 +544,62 @@ function MeetCard({ meet }: { meet: Meet }) {
   );
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const RADIUS_KM = 100;
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function fmtDistance(km: number) {
+  return km < 1 ? `${Math.round(km * 1000)}m away` : `${km.toFixed(1)} km away`;
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function Meets() {
   const [showPostModal, setShowPostModal] = useState(false);
-  const [meets, setMeets] = useState<Meet[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allMeets, setAllMeets] = useState<Meet[]>([]);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [meetsLoading, setMeetsLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'meets'), orderBy('createdAt', 'desc'));
+    Location.requestForegroundPermissionsAsync().then(({ status }) => {
+      if (status === 'granted') {
+        Location.getCurrentPositionAsync({}).then(pos => {
+          setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }).catch(() => {}).finally(() => setLocationLoading(false));
+      } else {
+        setLocationLoading(false);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'meets'), where('status', '!=', 'ended'), orderBy('status'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
       const results: Meet[] = [];
-      snap.forEach(doc => results.push({ id: doc.id, ...doc.data() } as Meet));
-      setMeets(results);
-      setLoading(false);
+      snap.forEach(d => results.push({ id: d.id, ...d.data() } as Meet));
+      setAllMeets(results);
+      setMeetsLoading(false);
     });
     return () => unsub();
   }, []);
+
+  const loading = locationLoading || meetsLoading;
+
+  const nearbyMeets = userCoords
+    ? allMeets
+        .filter(m => m.lat && m.lng && haversineKm(userCoords.lat, userCoords.lng, m.lat!, m.lng!) <= RADIUS_KM)
+        .sort((a, b) => haversineKm(userCoords.lat, userCoords.lng, a.lat!, a.lng!) - haversineKm(userCoords.lat, userCoords.lng, b.lat!, b.lng!))
+    : allMeets;
 
   return (
     <SafeAreaView style={s.container}>
@@ -547,18 +615,26 @@ export default function Meets() {
         <View style={s.section}>
           <View style={s.sectionHeader}>
             <View style={s.sectionDot} />
-            <Text style={s.sectionTitle}>ALL MEETS</Text>
+            <Text style={s.sectionTitle}>
+              {userCoords ? `MEETS NEAR YOU · ${RADIUS_KM}KM` : 'ALL MEETS'}
+            </Text>
           </View>
           {loading ? (
             <ActivityIndicator color={Colors.accent} style={{ marginTop: 40 }} />
-          ) : meets.length === 0 ? (
+          ) : nearbyMeets.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="flag-outline" size={48} color={Colors.textMuted} />
-              <Text style={s.emptyTitle}>NO MEETS YET</Text>
-              <Text style={s.emptyText}>Be the first to post a meet in your city.</Text>
+              <Text style={s.emptyTitle}>NO MEETS NEARBY</Text>
+              <Text style={s.emptyText}>No meets within {RADIUS_KM}km. Check the Map tab to see meets worldwide.</Text>
             </View>
           ) : (
-            meets.map(m => <MeetCard key={m.id} meet={m} />)
+            nearbyMeets.map(m => (
+              <MeetCard
+                key={m.id}
+                meet={m}
+                distance={userCoords && m.lat && m.lng ? haversineKm(userCoords.lat, userCoords.lng, m.lat, m.lng) : null}
+              />
+            ))
           )}
         </View>
       </ScrollView>
@@ -581,6 +657,8 @@ const s = StyleSheet.create({
   sectionTitle:          { color: Colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 2.5 },
   meetCard:              { backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder, padding: 16, marginBottom: 10 },
   meetCardTop:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  meetCardTopRight:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  distanceText:          { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
   meetTitle:             { color: Colors.text, fontSize: 16, fontWeight: '900', flex: 1, marginRight: 10 },
   attendeesBadge:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accentDim, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: Colors.accent + '40' },
   attendeesText:         { color: Colors.accent, fontSize: 11, fontWeight: '800' },
@@ -656,8 +734,10 @@ const mp = StyleSheet.create({
   radiusRow:       { flexDirection: 'row', gap: 10, marginBottom: 20 },
   radiusBtn:       { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.cardBorder, alignItems: 'center', backgroundColor: Colors.card },
   radiusBtnActive: { backgroundColor: Colors.accentDim, borderColor: Colors.accent },
-  radiusBtnText:   { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
+  radiusBtnText:       { color: Colors.textMuted, fontSize: 12, fontWeight: '800' },
   radiusBtnTextActive: { color: Colors.accent },
+  radiusBtnSub:        { color: Colors.textMuted, fontSize: 10, fontWeight: '500', opacity: 0.6, marginTop: 2 },
+  radiusBtnSubActive:  { color: Colors.accent, opacity: 0.7 },
   confirmBtn:      { backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   confirmBtnText:  { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
   searchBox:       { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginLeft: 10, borderWidth: 1, borderColor: Colors.cardBorder },

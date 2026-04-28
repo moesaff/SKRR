@@ -4,6 +4,7 @@ import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export const CARD_WIDTH = SCREEN_WIDTH - 48;
@@ -796,13 +797,13 @@ function CardFront({
         <View style={[styles.divider, { backgroundColor: dividerClr }]} />
 
         <View style={styles.statsRow}>
-          <StatItem label="MEETS"      value={data.stats.meetsAttended} accent={outlineColor} textMuted={textMuted} />
+          <StatItem label="MEETS"      value={data.stats.meetsAttended} icon="car-sport"  accent={outlineColor} textMuted={textMuted} />
           <View style={[styles.statDivider, { backgroundColor: dividerClr }]} />
-          <StatItem label="HOSTED"     value={data.stats.meetsHosted}   accent={outlineColor} textMuted={textMuted} />
+          <StatItem label="HOSTED"     value={data.stats.meetsHosted}   icon="trophy"     accent={outlineColor} textMuted={textMuted} />
           <View style={[styles.statDivider, { backgroundColor: dividerClr }]} />
-          <StatItem label="NETWORK"    value={data.stats.friends}       accent={outlineColor} textMuted={textMuted} />
+          <StatItem label="NETWORK"    value={data.stats.friends}       icon="people"     accent={outlineColor} textMuted={textMuted} />
           <View style={[styles.statDivider, { backgroundColor: dividerClr }]} />
-          <StatItem label="REPUTATION" value={data.stats.rating} isRating accent={outlineColor} textMuted={textMuted} />
+          <StatItem label="RESPECT" value={data.stats.rating} icon="flame" accent={outlineColor} textMuted={textMuted} />
         </View>
 
         <View style={styles.skrrWordmarkWrap}>
@@ -892,10 +893,28 @@ function CardBack({
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StatItem({ label, value, isRating, accent, textMuted }: { label: string; value: number; isRating?: boolean; accent: string; textMuted: string }) {
+function CrownIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M3 18 L3 13 L7 8 L10.5 12.5 L12 6 L13.5 12.5 L17 8 L21 13 L21 18 Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+function StatItem({ label, value, icon, accent, textMuted }: { label: string; value: number; icon?: any; accent: string; textMuted: string }) {
   return (
     <View style={styles.statItem}>
-      <Text style={[styles.statValue, { color: accent }]}>{isRating ? `${value}★` : value}</Text>
+      <View style={styles.statValueRow}>
+        {icon === 'crown'
+          ? <CrownIcon size={13} color={accent} />
+          : icon
+            ? <Ionicons name={icon} size={13} color={accent} />
+            : null}
+        <Text style={[styles.statValue, { color: accent }]}>{value}</Text>
+      </View>
       <Text style={[styles.statLabel, { color: accent }]}>{label}</Text>
     </View>
   );
@@ -947,6 +966,7 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginBottom: 16 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   statItem: { alignItems: 'center', flex: 1 },
+  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statValue: { fontSize: 18, fontWeight: '900' },
   statLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 1, marginTop: 3 },
   statDivider: { width: 1, height: 28 },

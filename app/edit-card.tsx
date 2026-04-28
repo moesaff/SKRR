@@ -26,7 +26,8 @@ import { useUser } from '../context/UserContext';
 import { ALL_MAKES } from '../constants/carDatabase';
 import { CARD_BACKGROUNDS } from '../components/FlipCard';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
 
 const GOOGLE_KEY = 'AIzaSyBN2H0Lh-y9vuNXQ4t4QFOnhMSAnLDznXY';
 
@@ -277,6 +278,15 @@ export default function EditCard() {
   const [cardBg, setCardBg] = useState(user.cardStyle?.background ?? 'original');
   const [outlineColor, setOutlineColor] = useState(user.cardStyle?.outlineColor ?? '#FF0080');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function uploadPhoto(localUri: string, path: string): Promise<string> {
+    const res = await fetch(localUri);
+    const blob = await res.blob();
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, blob);
+    return getDownloadURL(storageRef);
+  }
 
   const pickImage = async (type: 'profile' | 'car') => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -325,40 +335,56 @@ export default function EditCard() {
       Alert.alert('Username Locked', `You can change your username in ${usernameDaysLeft} day${usernameDaysLeft === 1 ? '' : 's'}.`);
       return;
     }
-    const carData = {
-      year: carYear,
-      make: make.trim(),
-      model: model.trim(),
-      photo: carPhoto,
-      hp: parseInt(hp) || 0,
-      torque: parseInt(torque) || 0,
-      zeroToSixty: zeroToSixty.trim(),
-      drivetrain,
-      engine: engine.trim(),
-      mods: modsText.split('\n').map((m) => m.trim()).filter(Boolean),
-    };
-    updateUser({
-      username: username.trim(),
-      location: location.trim(),
-      profilePhoto,
-      cardStyle: { background: cardBg, outlineColor, aura: 'none' },
-    });
-    updateCar(carData);
-    if (user.id && user.id !== '1') {
-      try {
+
+    setSaving(true);
+    try {
+      let finalProfilePhoto = profilePhoto;
+      let finalCarPhoto = carPhoto;
+
+      if (user.id && user.id !== '1') {
+        if (profilePhoto?.startsWith('file://')) {
+          finalProfilePhoto = await uploadPhoto(profilePhoto, `users/${user.id}/profile.jpg`);
+        }
+        if (carPhoto?.startsWith('file://')) {
+          finalCarPhoto = await uploadPhoto(carPhoto, `users/${user.id}/car.jpg`);
+        }
+      }
+
+      const carData = {
+        year: carYear,
+        make: make.trim(),
+        model: model.trim(),
+        photo: finalCarPhoto,
+        hp: parseInt(hp) || 0,
+        torque: parseInt(torque) || 0,
+        zeroToSixty: zeroToSixty.trim(),
+        drivetrain,
+        engine: engine.trim(),
+        mods: modsText.split('\n').map((m) => m.trim()).filter(Boolean),
+      };
+      updateUser({
+        username: username.trim(),
+        location: location.trim(),
+        profilePhoto: finalProfilePhoto,
+        cardStyle: { background: cardBg, outlineColor, aura: 'none' },
+      });
+      updateCar(carData);
+      if (user.id && user.id !== '1') {
         await setDoc(doc(db, 'users', user.id), {
           username: username.trim(),
           city: location.trim(),
-          profilePhoto: profilePhoto ?? null,
+          profilePhoto: finalProfilePhoto ?? null,
           cardStyle: { background: cardBg, outlineColor, aura: 'none' },
           car: carData,
           ...(usernameChanged ? { usernameLastChanged: serverTimestamp() } : {}),
         }, { merge: true });
-      } catch (e: any) {
-        Alert.alert('Save failed', e.message);
-        return;
       }
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message);
+      setSaving(false);
+      return;
     }
+    setSaving(false);
     router.back();
   };
 
@@ -559,9 +585,9 @@ export default function EditCard() {
             onSelect={setOutlineColor}
           />
 
-          <Pressable style={styles.saveBtn} onPress={handleSave}>
-            <Ionicons name="checkmark-circle" size={18} color="#000" />
-            <Text style={styles.saveBtnText}>SAVE CARD</Text>
+          <Pressable style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+            <Ionicons name={saving ? 'cloud-upload' : 'checkmark-circle'} size={18} color="#000" />
+            <Text style={styles.saveBtnText}>{saving ? 'SAVING...' : 'SAVE CARD'}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

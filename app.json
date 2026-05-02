@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "skrr",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -22,7 +22,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "SKRR uses your location to show nearby car meets and help you post meets in your area.",
         "NSPhotoLibraryUsageDescription": "SKRR uses your photo library so you can add a profile photo and car photo to your card.",
-        "NSPhotoLibraryAddUsageDescription": "SKRR saves photos to your library when sharing your card."
+        "NSPhotoLibraryAddUsageDescription": "SKRR saves photos to your library when sharing your card.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,7 +31,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#05050F"
       },
-      "package": "com.skrr.app"
+      "package": "com.skrr.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,6 +48,12 @@
           "cameraPermission": "SKRR uses your camera to scan QR codes and connect with other car enthusiasts."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cd0d7d26-c122-4576-bc6c-b92a1e20cb96"
+      }
+    }
   }
 }

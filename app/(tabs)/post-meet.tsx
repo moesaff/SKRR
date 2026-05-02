@@ -511,7 +511,15 @@ function MeetCard({ meet, distance }: { meet: Meet; distance: number | null }) {
   return (
     <TouchableOpacity activeOpacity={0.75} style={s.meetCard} onPress={() => router.push(`/meet/${meet.id}`)}>
       <View style={s.meetCardTop}>
-        <Text style={s.meetTitle} numberOfLines={1}>{meet.title}</Text>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={s.meetTitle} numberOfLines={1}>{meet.title}</Text>
+          {isLive(meet.date) && (
+            <View style={s.liveBadge}>
+              <View style={s.liveDot} />
+              <Text style={s.liveText}>LIVE</Text>
+            </View>
+          )}
+        </View>
         <View style={s.meetCardTopRight}>
           {distance !== null && (
             <Text style={s.distanceText}>{fmtDistance(distance)}</Text>
@@ -547,6 +555,38 @@ function MeetCard({ meet, distance }: { meet: Meet; distance: number | null }) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const RADIUS_KM = 100;
+
+function parseMeetDate(dateStr: string): Date | null {
+  try {
+    // Format: "Saturday, Apr 26 · 8:00 PM"
+    const [datePart, timePart] = dateStr.split(' · ');
+    const [, monthDay] = datePart.split(', ');
+    const [monthAbbr, dayStr] = monthDay.split(' ');
+    const months: Record<string, number> = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+    const month = months[monthAbbr];
+    const day = parseInt(dayStr);
+    const [time, ampm] = timePart.split(' ');
+    const [hStr, mStr] = time.split(':');
+    let hour = parseInt(hStr);
+    const min = parseInt(mStr);
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    const now = new Date();
+    let year = now.getFullYear();
+    const d = new Date(year, month, day, hour, min);
+    // If the date is more than 2 months in the past, assume next year
+    if (now.getTime() - d.getTime() > 60 * 24 * 60 * 60 * 1000) {
+      d.setFullYear(year + 1);
+    }
+    return d;
+  } catch { return null; }
+}
+
+function isLive(dateStr: string): boolean {
+  const meetDate = parseMeetDate(dateStr);
+  if (!meetDate) return false;
+  return new Date() >= meetDate;
+}
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371;
@@ -663,6 +703,9 @@ const s = StyleSheet.create({
   meetCardTop:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   meetCardTopRight:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
   distanceText:          { color: Colors.textMuted, fontSize: 11, fontWeight: '700' },
+  liveBadge:             { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FF003015', borderWidth: 1, borderColor: '#FF003060', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  liveDot:               { width: 5, height: 5, borderRadius: 3, backgroundColor: '#FF0030' },
+  liveText:              { color: '#FF0030', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   meetTitle:             { color: Colors.text, fontSize: 16, fontWeight: '900', flex: 1, marginRight: 10 },
   attendeesBadge:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accentDim, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: Colors.accent + '40' },
   attendeesText:         { color: Colors.accent, fontSize: 11, fontWeight: '800' },

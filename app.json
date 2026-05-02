@@ -47,7 +47,8 @@
         {
           "cameraPermission": "SKRR uses your camera to scan QR codes and connect with other car enthusiasts."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},

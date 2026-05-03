@@ -37,7 +37,7 @@ export default function Login() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.inner}>
         <View style={styles.logoSection}>
-          <Text style={styles.logo}>SKRR</Text>
+          <Text style={styles.logo}>OOF</Text>
           <Text style={styles.tagline}>The Car Meet Community</Text>
         </View>
 
@@ -67,7 +67,7 @@ export default function Login() {
           </Pressable>
 
           <Pressable style={styles.link} onPress={() => router.push('/auth/signup')}>
-            <Text style={styles.linkText}>New to SKRR? <Text style={styles.linkAccent}>Create Account</Text></Text>
+            <Text style={styles.linkText}>New to OOF? <Text style={styles.linkAccent}>Create Account</Text></Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

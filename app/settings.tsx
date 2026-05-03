@@ -18,9 +18,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/colors';
 
 const URLS = {
-  tos:     'https://moesaff.github.io/SKRR/tos.html',
-  privacy: 'https://moesaff.github.io/SKRR/privacy.html',
-  faq:     'https://moesaff.github.io/SKRR/faq.html',
+  tos:     'https://moesaff.github.io/OOF/tos.html',
+  privacy: 'https://moesaff.github.io/OOF/privacy.html',
+  faq:     'https://moesaff.github.io/OOF/faq.html',
 };
 
 function openURL(url: string) {
@@ -142,7 +142,7 @@ export default function Settings() {
 
         <Section title="SUPPORT">
           <Row icon="help-circle" label="Help & FAQ" onPress={() => openURL(URLS.faq)} />
-          <Row icon="chatbubble-ellipses" label="Contact Us" onPress={() => Linking.openURL('mailto:skrr.support@gmail.com')} />
+          <Row icon="chatbubble-ellipses" label="Contact Us" onPress={() => Linking.openURL('mailto:oof.support@gmail.com')} />
         </Section>
 
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
@@ -154,7 +154,7 @@ export default function Settings() {
           <Text style={s.deleteText}>Delete Account</Text>
         </TouchableOpacity>
 
-        <Text style={s.version}>SKRR v1.0.0</Text>
+        <Text style={s.version}>OOF v1.0.0</Text>
 
       </ScrollView>
 

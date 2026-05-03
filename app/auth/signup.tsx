@@ -96,7 +96,7 @@ export default function Signup() {
             <TouchableOpacity onPress={back} style={s.backBtn}>
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={s.logo}>SKRR</Text>
+            <Text style={s.logo}>OOF</Text>
             <View style={{ width: 38 }} />
           </View>
 

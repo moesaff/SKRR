@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "SKRR",
-    "slug": "skrr",
+    "name": "OOF",
+    "slug": "oof",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "skrr",
+    "scheme": "oof",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.skrr.app",
+      "bundleIdentifier": "com.oofapp.meets",
       "config": {
         "googleMapsApiKey": "AIzaSyBN2H0Lh-y9vuNXQ4t4QFOnhMSAnLDznXY"
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "SKRR uses your location to show nearby car meets and help you post meets in your area.",
-        "NSPhotoLibraryUsageDescription": "SKRR uses your photo library so you can add a profile photo and car photo to your card.",
-        "NSPhotoLibraryAddUsageDescription": "SKRR saves photos to your library when sharing your card.",
+        "NSLocationWhenInUseUsageDescription": "OOF uses your location to show nearby car meets and help you post meets in your area.",
+        "NSPhotoLibraryUsageDescription": "OOF uses your photo library so you can add a profile photo and car photo to your card.",
+        "NSPhotoLibraryAddUsageDescription": "OOF saves photos to your library when sharing your card.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -31,7 +31,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#05050F"
       },
-      "package": "com.skrr.app",
+      "package": "com.oofapp.meets",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -45,7 +45,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SKRR uses your camera to scan QR codes and connect with other car enthusiasts."
+          "cameraPermission": "OOF uses your camera to scan QR codes and connect with other car enthusiasts."
         }
       ],
       "expo-font"

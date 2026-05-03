@@ -53,7 +53,7 @@ export default function Welcome() {
         <Animated.Text style={[s.logo, {
           opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }),
         }]}>
-          SKRR
+          OOF
         </Animated.Text>
         <Animated.Text style={[s.subtitle, { opacity: taglineOp }]}>
           Built for the community, powered by culture.

@@ -192,7 +192,7 @@ export default function Messages() {
           <Ionicons name="chatbubbles-outline" size={52} color={Colors.accent} style={s.emptyIcon} />
           <Text style={s.emptyTitle}>NO MESSAGES YET</Text>
           <Text style={s.emptyBody}>
-            Connect with other SKRR members{'\n'}and start a conversation.
+            Connect with other OOF members{'\n'}and start a conversation.
           </Text>
         </View>
       ) : (

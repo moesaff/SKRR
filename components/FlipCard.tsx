@@ -573,25 +573,25 @@ const RANKS_INFO = [
     name: '5TH GEAR',
     tag: 'Rank 5',
     color: '#FF8800',
-    description: "Welcome to the big leagues. Your network is massive, your reputation undeniable, and your consistency unmatched. Thousands of meets attended and hosted — you've proven your commitment at scale. Your name holds authority, and building a successful SKRR club is no longer a goal… it's expected.",
+    description: "Welcome to the big leagues. Your network is massive, your reputation undeniable, and your consistency unmatched. Thousands of meets attended and hosted — you've proven your commitment at scale. Your name holds authority, and building a successful OOF club is no longer a goal… it's expected.",
   },
   {
     gearNum: 6,
     name: '6TH GEAR',
     tag: 'Rank 6',
     color: '#FF0080',
-    description: "Extremely rare. Reaching this level puts you in a category of your own. With over 200,000 in your network and relentless activity, you've become a defining figure in the culture. SKRR recognizes you — featured, highlighted, and celebrated. At this level, you're not chasing the scene… you are the scene.",
+    description: "Extremely rare. Reaching this level puts you in a category of your own. With over 200,000 in your network and relentless activity, you've become a defining figure in the culture. OOF recognizes you — featured, highlighted, and celebrated. At this level, you're not chasing the scene… you are the scene.",
   },
   {
     gearNum: 7,
-    name: 'SKRR LEGEND',
+    name: 'OOF LEGEND',
     tag: 'Rank 7  ·  Hall of Fame',
     color: '#FFD700',
-    description: "A different breed entirely. From a kid who loved cars to being widely known and respected for that exact passion — you've turned love into legacy. With a network exceeding 1,000,000, you've built more than a name, you've built a movement. Permanently placed in the SKRR Hall of Fame, you represent the pinnacle of the culture.",
+    description: "A different breed entirely. From a kid who loved cars to being widely known and respected for that exact passion — you've turned love into legacy. With a network exceeding 1,000,000, you've built more than a name, you've built a movement. Permanently placed in the OOF Hall of Fame, you represent the pinnacle of the culture.",
   },
 ];
 
-const RANK_NOTE = "Rank never defines who someone is in the car scene. Some people prefer to stay low, enjoy the builds, and be part of the culture without chasing recognition. Others push to grow, expand, and make a name for themselves — or even build a career. Both paths carry equal respect. SKRR is here to support all of it.";
+const RANK_NOTE = "Rank never defines who someone is in the car scene. Some people prefer to stay low, enjoy the builds, and be part of the culture without chasing recognition. Others push to grow, expand, and make a name for themselves — or even build a career. Both paths carry equal respect. OOF is here to support all of it.";
 
 // H-pattern gear positions: [col 0..2, row 0=top/1=bottom]
 // gear 1=col0/top, 2=col0/bot, 3=col1/top, 4=col1/bot, 5=col2/top, 6=col2/bot
@@ -687,7 +687,7 @@ function RankInfoModal({ visible, onClose }: { visible: boolean; onClose: () => 
       <View style={rm.overlay}>
         <View style={rm.sheet}>
           <View style={rm.header}>
-            <Text style={rm.title}>HOW DOES RANK WORK IN SKRR?</Text>
+            <Text style={rm.title}>HOW DOES RANK WORK IN OOF?</Text>
             <Pressable onPress={onClose} style={rm.closeBtn}>
               <Text style={rm.closeBtnTxt}>✕</Text>
             </Pressable>
@@ -810,7 +810,7 @@ export function CardFront({
 
         <View style={styles.skrrWordmarkWrap}>
           <Image
-            source={require('../assets/ChatGPT Image Apr 25, 2026, 12_22_34 AM.png')}
+            source={require('../assets/oof-wordmark.png')}
             style={styles.skrrWordmarkImg}
             resizeMode="contain"
             tintColor={outlineColor}
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
   },
   achievementMoreText: { fontSize: 8, fontWeight: '700' },
   skrrWordmarkWrap:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  skrrWordmarkImg:   { width: CARD_WIDTH - 40, height: 200 },
+  skrrWordmarkImg:   { width: CARD_WIDTH - 40, height: 200, marginLeft: -12 },
   glowLine: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
     shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 6,

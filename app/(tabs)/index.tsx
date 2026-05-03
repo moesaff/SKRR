@@ -201,7 +201,7 @@ export default function Network() {
                 <View style={s.empty}>
                   <Ionicons name="people-outline" size={44} color={Colors.textMuted} />
                   <Text style={s.emptyTitle}>NO CONNECTIONS YET</Text>
-                  <Text style={s.emptyText}>Add people by SKRR ID, QR code, or at a meet.</Text>
+                  <Text style={s.emptyText}>Add people by OOF ID, QR code, or at a meet.</Text>
                 </View>
               ) : (
                 <FlatList
@@ -233,7 +233,7 @@ export default function Network() {
               <View style={s.howTo}>
                 <Text style={s.howToTitle}>HOW TO CONNECT</Text>
                 <HowToRow icon="qr-code" label="Scan QR Code" sub="In-person tap" />
-<HowToRow icon="search" label="SKRR ID" sub="Intentional add, requires approval" />
+<HowToRow icon="search" label="OOF ID" sub="Intentional add, requires approval" />
                 <HowToRow icon="flag" label="Same Meet" sub="Checked in together → request after" />
               </View>
             )}
@@ -315,7 +315,7 @@ function AddModal({ visible, onClose, myId, myUsername, mySkrrId, myConnections 
       const q = query(collection(db, 'users'), where('skrrId', '==', id));
       const snap = await getDocs(q);
       if (snap.empty) {
-        Alert.alert('Not Found', 'No user with that SKRR ID.');
+        Alert.alert('Not Found', 'No user with that OOF ID.');
       } else {
         const d = snap.docs[0];
         setSearchResult({
@@ -375,7 +375,7 @@ function AddModal({ visible, onClose, myId, myUsername, mySkrrId, myConnections 
           {/* Tabs */}
           <View style={as.tabs}>
             <TouchableOpacity style={[as.tab, tab === 'id' && as.tabActive]} onPress={() => setTab('id')}>
-              <Text style={[as.tabText, tab === 'id' && as.tabTextActive]}>SKRR ID</Text>
+              <Text style={[as.tabText, tab === 'id' && as.tabTextActive]}>OOF ID</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[as.tab, tab === 'qr' && as.tabActive]} onPress={() => setTab('qr')}>
               <Text style={[as.tabText, tab === 'qr' && as.tabTextActive]}>QR CODE</Text>
@@ -384,7 +384,7 @@ function AddModal({ visible, onClose, myId, myUsername, mySkrrId, myConnections 
 
           {tab === 'id' ? (
             <View style={as.content}>
-              <Text style={as.hint}>Enter someone's SKRR ID to send a connection request.</Text>
+              <Text style={as.hint}>Enter someone's OOF ID to send a connection request.</Text>
               <View style={as.inputRow}>
                 <Text style={as.hashPrefix}>#</Text>
                 <TextInput
@@ -466,14 +466,14 @@ function QRTab({ mySkrrId, myUsername, myId, myConnections, onSendRequest }: {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const qrValue = `skrr://add/${mySkrrId}`;
+  const qrValue = `oof://add/${mySkrrId}`;
 
   async function handleBarcode({ data }: { data: string }) {
     if (scanned || loadingResult) return;
     setScanned(true);
-    const match = data.match(/^skrr:\/\/add\/([A-Z0-9]+)$/);
+    const match = data.match(/^oof:\/\/add\/([A-Z0-9]+)$/);
     if (!match) {
-      Alert.alert('Invalid QR', 'This QR code is not a SKRR ID.', [
+      Alert.alert('Invalid QR', 'This QR code is not an OOF ID.', [
         { text: 'Retry', onPress: () => setScanned(false) },
       ]);
       return;
@@ -484,7 +484,7 @@ function QRTab({ mySkrrId, myUsername, myId, myConnections, onSendRequest }: {
       const q = query(collection(db, 'users'), where('skrrId', '==', id));
       const snap = await getDocs(q);
       if (snap.empty) {
-        Alert.alert('Not Found', 'No SKRR user with that ID.', [
+        Alert.alert('Not Found', 'No OOF user with that ID.', [
           { text: 'Retry', onPress: () => setScanned(false) },
         ]);
         setLoadingResult(false);
@@ -621,7 +621,7 @@ function QRTab({ mySkrrId, myUsername, myId, myConnections, onSendRequest }: {
                 <View style={[as.scanCorner, as.scanCornerBL]} />
                 <View style={[as.scanCorner, as.scanCornerBR]} />
               </View>
-              <Text style={as.scanLabel}>Point at a SKRR QR code</Text>
+              <Text style={as.scanLabel}>Point at an OOF QR code</Text>
             </View>
           )}
         </View>
